@@ -5,9 +5,9 @@ const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
 
 router.use(verifyToken);
 
-router.post('/', requireRole(['admin', 'officer']), invoiceController.createInvoice);
+router.post('/', requireRole(['officer']), invoiceController.createInvoice);
 router.get('/:id', requireRole(['admin', 'officer', 'manager', 'vendor']), invoiceController.getInvoiceDetails);
 router.get('/:id/pdf', invoiceController.downloadInvoicePDF);
-router.post('/:id/send-email', requireRole(['admin', 'officer']), invoiceController.sendInvoiceViaEmail);
+router.post('/:id/send-email', requireRole(['officer']), invoiceController.sendInvoiceViaEmail);
 
 module.exports = router;

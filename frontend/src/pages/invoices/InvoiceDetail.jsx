@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Printer, Download, Mail, CheckCircle, CheckSquare } from 'lucide-react';
 import api from '../../lib/axios';
+import { useAuth } from '../../context/AuthContext';
 
 const mockInvoiceDetail = {
   id: 1, 
@@ -24,6 +25,9 @@ const mockInvoiceDetail = {
 };
 
 const InvoiceDetail = () => {
+  const { user } = useAuth();
+  const isOfficer = user?.role === 'officer';
+
   const { id } = useParams();
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState(null);
@@ -94,13 +98,15 @@ const InvoiceDetail = () => {
           <button onClick={() => window.print()} className="btn btn-ghost flex items-center gap-2 print:hidden">
             <Download size={16} /> PDF
           </button>
-          <button 
-            onClick={handleSendEmail} 
-            disabled={emailing || emailSent}
-            className={`btn border-none flex items-center gap-2 print:hidden ${emailSent ? 'bg-success text-white' : 'bg-primary text-white hover:bg-blue-600'}`}
-          >
-            {emailing ? 'Sending...' : emailSent ? <><CheckCircle size={16} /> Sent</> : <><Mail size={16} /> Email Vendor</>}
-          </button>
+          {isOfficer && (
+            <button 
+              onClick={handleSendEmail} 
+              disabled={emailing || emailSent}
+              className={`btn border-none flex items-center gap-2 print:hidden ${emailSent ? 'bg-success text-white' : 'bg-primary text-white hover:bg-blue-600'}`}
+            >
+              {emailing ? 'Sending...' : emailSent ? <><CheckCircle size={16} /> Sent</> : <><Mail size={16} /> Email Vendor</>}
+            </button>
+          )}
           
           {!isPaid && (
             <button 

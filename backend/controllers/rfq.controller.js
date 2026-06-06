@@ -3,9 +3,17 @@ const logActivity = require('../utils/activityLogger');
 
 exports.getAllRFQs = async (req, res) => {
   try {
+    let vendorInclude = { model: Vendor, attributes: ['id', 'company_name'] };
+
+    if (req.user.role === 'vendor') {
+      const vendor = await Vendor.findOne({ where: { user_id: req.user.id } });
+      if (!vendor) return res.json({ success: true, data: [] });
+      vendorInclude.where = { id: vendor.id }; // Enforce INNER JOIN for assigned vendors only
+    }
+
     const rfqs = await RFQ.findAll({
       include: [
-        { model: Vendor, attributes: ['id', 'company_name'] },
+        vendorInclude,
         { model: Quotation }
       ]
     });
@@ -18,13 +26,22 @@ exports.getAllRFQs = async (req, res) => {
 
 exports.getRFQById = async (req, res) => {
   try {
+    let vendorInclude = { model: Vendor, attributes: ['id', 'company_name', 'email', 'contact_person'] };
+
+    if (req.user.role === 'vendor') {
+      const vendor = await Vendor.findOne({ where: { user_id: req.user.id } });
+      if (!vendor) return res.status(403).json({ success: false, message: 'Access Denied' });
+      vendorInclude.where = { id: vendor.id };
+    }
+
     const rfq = await RFQ.findByPk(req.params.id, {
       include: [
-        { model: Vendor, attributes: ['id', 'company_name', 'email', 'contact_person'] },
+        vendorInclude,
         { model: Quotation, include: [{ model: Vendor, attributes: ['company_name', 'rating'] }] }
       ]
     });
-    if (!rfq) return res.status(404).json({ success: false, message: 'RFQ not found' });
+    
+    if (!rfq) return res.status(404).json({ success: false, message: 'RFQ not found or not assigned to you' });
     res.json({ success: true, data: rfq, message: 'RFQ fetched successfully' });
   } catch (error) {
     console.error(error);

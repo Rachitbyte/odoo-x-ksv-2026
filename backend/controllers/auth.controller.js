@@ -21,6 +21,16 @@ exports.register = async (req, res) => {
       role: role || 'vendor', // default to vendor if not provided
     });
 
+    if (user.role === 'vendor') {
+      await Vendor.create({
+        user_id: user.id,
+        company_name: name, // Default company name to user name
+        contact_person: name,
+        email: email,
+        status: 'active'
+      });
+    }
+
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
     res.status(201).json({
@@ -83,6 +93,26 @@ exports.getMe = async (req, res) => {
     }
 
     res.json({ success: true, data: user, message: 'User fetched successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ where: { email } });
+    
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return res.json({ success: true, message: 'If that email is registered, a password reset link has been sent.' });
+    }
+
+    // MOCK: In a real app, generate a reset token and send an email here
+    console.log(`[MOCK EMAIL] Password reset link sent to ${email}`);
+
+    res.json({ success: true, message: 'If that email is registered, a password reset link has been sent.' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });

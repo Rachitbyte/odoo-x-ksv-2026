@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Search, FileText, ChevronRight, Filter } from 'lucide-react';
 import api from '../../lib/axios';
+import { useAuth } from '../../context/AuthContext';
 
 const initialMockRFQs = [
   { id: 1, rfq_number: "RFQ-2024-0001", title: "Office IT Equipment", quantity: 50, unit: "pcs", deadline: "2024-12-15", status: "open", created_at: "2024-12-01" },
@@ -11,6 +12,9 @@ const initialMockRFQs = [
 ];
 
 const RFQList = () => {
+  const { user } = useAuth();
+  const isOfficer = user?.role === 'officer';
+
   const [rfqs, setRfqs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -55,10 +59,12 @@ const RFQList = () => {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-text-primary">Requests for Quotation (RFQs)</h2>
-        <Link to="/rfq/new" className="btn btn-primary flex items-center gap-2">
-          <Plus size={18} />
-          Create RFQ
-        </Link>
+        {isOfficer && (
+          <Link to="/rfq/new" className="btn btn-primary flex items-center gap-2">
+            <Plus size={18} />
+            Create RFQ
+          </Link>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">

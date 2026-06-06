@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, X, Star, AlertTriangle, Building2, User, Phone, Mail, Hash } from 'lucide-react';
 import api from '../lib/axios';
 import clsx from 'clsx';
+import { useAuth } from '../context/AuthContext';
 
 const initialMockData = [
   { id: 1, company_name: "TechSupplies Ltd", contact_person: "Amit Shah", email: "amit@tech.com", phone: "9876543210", category: "IT", gst_number: "GST123456", status: "active", rating: 4.5 },
@@ -10,6 +11,9 @@ const initialMockData = [
 ];
 
 const Vendors = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -107,10 +111,12 @@ const Vendors = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-text-primary">Vendors</h2>
-        <button onClick={() => handleOpenModal()} className="btn btn-primary flex items-center gap-2">
-          <Plus size={18} />
-          Add Vendor
-        </button>
+        {isAdmin && (
+          <button onClick={() => handleOpenModal()} className="btn btn-primary flex items-center gap-2">
+            <Plus size={18} />
+            Add Vendor
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -165,7 +171,7 @@ const Vendors = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredVendors.map(vendor => (
-            <VendorCard key={vendor.id} vendor={vendor} onEdit={() => handleOpenModal(vendor)} onDelete={() => confirmDelete(vendor)} />
+            <VendorCard key={vendor.id} vendor={vendor} isAdmin={isAdmin} onEdit={() => handleOpenModal(vendor)} onDelete={() => confirmDelete(vendor)} />
           ))}
         </div>
       )}
@@ -176,7 +182,7 @@ const Vendors = () => {
   );
 };
 
-const VendorCard = ({ vendor, onEdit, onDelete }) => {
+const VendorCard = ({ vendor, isAdmin, onEdit, onDelete }) => {
   const getStatusBadge = (status) => {
     switch(status.toLowerCase()) {
       case 'active': return 'bg-success/10 text-success border-success/20';
@@ -190,10 +196,12 @@ const VendorCard = ({ vendor, onEdit, onDelete }) => {
     <div className="bg-surface border border-border rounded-xl p-5 flex flex-col group hover:border-primary/50 transition-colors shadow-sm relative">
       <div className="flex justify-between items-start mb-5">
         <h3 className="text-lg font-bold text-text-primary pr-8 truncate">{vendor.company_name}</h3>
-        <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={onEdit} className="text-text-secondary hover:text-primary transition-colors p-1.5 bg-background/50 rounded-md"><Edit2 size={16} /></button>
-          <button onClick={onDelete} className="text-text-secondary hover:text-danger transition-colors p-1.5 bg-background/50 rounded-md"><Trash2 size={16} /></button>
-        </div>
+        {isAdmin && (
+          <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={onEdit} className="text-text-secondary hover:text-primary transition-colors p-1.5 bg-background/50 rounded-md"><Edit2 size={16} /></button>
+            <button onClick={onDelete} className="text-text-secondary hover:text-danger transition-colors p-1.5 bg-background/50 rounded-md"><Trash2 size={16} /></button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 flex-1 mb-2">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, FileText, Check, AlertCircle, Star, GitCommit } from 'lucide-react';
 import api from '../lib/axios';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const mockApprovals = [
   { 
@@ -40,6 +41,9 @@ const mockApprovals = [
 ];
 
 const Approvals = () => {
+  const { user } = useAuth();
+  const isManager = user?.role === 'manager';
+
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
@@ -179,33 +183,35 @@ const Approvals = () => {
                 </div>
 
                 {/* Actions */}
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1">Your Remarks (Optional)</label>
-                  <textarea
-                    value={remarks[approval.id] || ''}
-                    onChange={(e) => handleRemarkChange(approval.id, e.target.value)}
-                    placeholder="Add approval or rejection notes..."
-                    className="w-full h-16 text-sm resize-none mb-3"
-                  />
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => handleAction(approval.id, 'reject')}
-                      disabled={actionLoading === approval.id}
-                      className="flex-1 btn btn-ghost text-danger hover:bg-danger/10 hover:text-danger hover:border-danger/30 flex justify-center items-center gap-2"
-                    >
-                      <XCircle size={16} /> Reject
-                    </button>
-                    <button
-                      onClick={() => handleAction(approval.id, 'approve')}
-                      disabled={actionLoading === approval.id}
-                      className="flex-1 btn btn-primary bg-success hover:bg-green-600 border-none flex justify-center items-center gap-2"
-                    >
-                      {actionLoading === approval.id ? 'Processing...' : (
-                        <><Check size={16} /> Approve</>
-                      )}
-                    </button>
+                {isManager && (
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1">Your Remarks (Optional)</label>
+                    <textarea
+                      value={remarks[approval.id] || ''}
+                      onChange={(e) => handleRemarkChange(approval.id, e.target.value)}
+                      placeholder="Add approval or rejection notes..."
+                      className="w-full h-16 text-sm resize-none mb-3"
+                    />
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleAction(approval.id, 'reject')}
+                        disabled={actionLoading === approval.id}
+                        className="flex-1 btn btn-ghost text-danger hover:bg-danger/10 hover:text-danger hover:border-danger/30 flex justify-center items-center gap-2"
+                      >
+                        <XCircle size={16} /> Reject
+                      </button>
+                      <button
+                        onClick={() => handleAction(approval.id, 'approve')}
+                        disabled={actionLoading === approval.id}
+                        className="flex-1 btn btn-primary bg-success hover:bg-green-600 border-none flex justify-center items-center gap-2"
+                      >
+                        {actionLoading === approval.id ? 'Processing...' : (
+                          <><Check size={16} /> Approve</>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
             </div>

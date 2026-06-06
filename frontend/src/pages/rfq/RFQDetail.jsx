@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, FileText, CheckCircle, Package, Scale, ChevronRight } from 'lucide-react';
 import api from '../../lib/axios';
+import { useAuth } from '../../context/AuthContext';
 
 const mockRFQ = {
   id: 1, 
@@ -22,6 +23,9 @@ const mockQuotations = [
 ];
 
 const RFQDetail = () => {
+  const { user } = useAuth();
+  const canCompare = user?.role === 'officer' || user?.role === 'manager';
+
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -85,10 +89,12 @@ const RFQDetail = () => {
           </div>
         </div>
         
-        <Link to={`/rfq/${id}/compare`} className="btn btn-primary flex items-center gap-2">
-          <Scale size={18} />
-          Compare Quotations
-        </Link>
+        {canCompare && (
+          <Link to={`/rfq/${id}/compare`} className="btn btn-primary flex items-center gap-2">
+            <Scale size={18} />
+            Compare Quotations
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

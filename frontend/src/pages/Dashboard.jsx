@@ -39,7 +39,16 @@ const Dashboard = () => {
       try {
         const response = await api.get('/dashboard/stats');
         if (response.success && response.data) {
-          setData(response.data);
+          // Merge with mockData so any missing fields don't crash .map() calls
+          setData({
+            ...mockData,
+            ...response.data,
+            monthlySpending: response.data.monthlySpending?.length
+              ? response.data.monthlySpending
+              : mockData.monthlySpending,
+            recentRFQs: response.data.recentRFQs ?? mockData.recentRFQs,
+            overdueInvoices: response.data.overdueInvoices ?? mockData.overdueInvoices,
+          });
         } else {
           setData(mockData);
         }
@@ -74,10 +83,10 @@ const Dashboard = () => {
 
       {/* Row 1: Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Pending Approvals" value={data.pendingApprovals} icon={Clock} trend="up" />
+        <StatCard title="Pending Approvals" value={data.pendingApprovals ?? data.pendingApprovals} icon={Clock} trend="up" />
         <StatCard title="Active RFQs" value={data.activeRFQs} icon={FileText} trend="up" />
         <StatCard title="POs This Month" value={data.posThisMonth} icon={ShoppingCart} trend="down" />
-        <StatCard title="Total Invoices" value={data.totalInvoices} icon={Receipt} trend="up" />
+        <StatCard title="Unpaid Invoices" value={data.unpaidInvoices ?? data.totalInvoices} icon={Receipt} trend="up" />
       </div>
 
       {/* Row 2: RFQs Table & Chart */}
@@ -119,10 +128,10 @@ const Dashboard = () => {
           <div className="h-64 mt-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.monthlySpending} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2E3347" vertical={false} />
-                <XAxis dataKey="month" stroke="#94A3B8" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E8E4DC" vertical={false} />
+                <XAxis dataKey="month" stroke="#5A5853" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
                 <YAxis 
-                  stroke="#94A3B8" 
+                  stroke="#5A5853" 
                   fontSize={12} 
                   tickLine={false} 
                   axisLine={false}
@@ -131,13 +140,13 @@ const Dashboard = () => {
                   tickMargin={10}
                 />
                 <Tooltip 
-                  cursor={{ fill: '#2E3347', opacity: 0.3 }}
-                  contentStyle={{ backgroundColor: '#1A1D27', borderColor: '#2E3347', borderRadius: '0.5rem', color: '#F1F5F9' }}
-                  itemStyle={{ color: '#4F8EF7', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 'bold' }}
+                  cursor={{ fill: '#E8E4DC', opacity: 0.5 }}
+                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E8E4DC', borderRadius: '0.5rem', color: '#1A1917' }}
+                  itemStyle={{ color: '#2D4A3E', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 'bold' }}
                   formatter={(value) => [`₹${value.toLocaleString()}`, 'Amount']}
-                  labelStyle={{ color: '#94A3B8', marginBottom: '4px' }}
+                  labelStyle={{ color: '#5A5853', marginBottom: '4px' }}
                 />
-                <Bar dataKey="amount" fill="#4F8EF7" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="amount" fill="#2D4A3E" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -195,10 +204,10 @@ const StatCard = ({ title, value, icon: Icon, trend }) => (
 
 const StatusBadge = ({ status }) => {
   const styles = {
-    open: 'bg-[#4F8EF7]/10 text-[#4F8EF7] border border-[#4F8EF7]/20',
-    under_review: 'bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/20',
-    approved: 'bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/20',
-    rejected: 'bg-[#EF4444]/10 text-[#EF4444] border border-[#EF4444]/20',
+    open: 'bg-[#2C5F8A]/10 text-[#2C5F8A] border border-[#2C5F8A]/20',
+    under_review: 'bg-[#B87333]/10 text-[#B87333] border border-[#B87333]/20',
+    approved: 'bg-[#2D4A3E]/10 text-[#2D4A3E] border border-[#2D4A3E]/20',
+    rejected: 'bg-[#C0392B]/10 text-[#C0392B] border border-[#C0392B]/20',
   };
 
   const labels = {

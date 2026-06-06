@@ -39,7 +39,7 @@ const Login = () => {
       const response = await api.post('/auth/login', { email, password });
       if (response.success) {
         login(response.data.token, response.data.user);
-        navigate('/');
+        navigate('/dashboard', { replace: true });
       } else {
         setServerError(response.message || 'Login failed');
       }

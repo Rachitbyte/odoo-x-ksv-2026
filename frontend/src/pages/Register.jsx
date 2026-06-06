@@ -50,7 +50,16 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const response = await api.post('/auth/register', formData);
+      const payload = {
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        phone: formData.phone,
+        country: formData.country,
+        description: formData.description
+      };
+      const response = await api.post('/auth/register', payload);
       if (response.success || response.data) {
         navigate('/login');
       } else {
