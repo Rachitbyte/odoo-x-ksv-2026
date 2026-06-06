@@ -1,45 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, FileText, ShoppingCart, Receipt, ArrowUpRight, ArrowDownRight, AlertTriangle, PlusCircle, Users, FilePlus } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  Clock, FileText, ShoppingCart, Receipt,
+  ArrowUpRight, ArrowDownRight, AlertTriangle, TrendingUp
+} from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
 import { Link } from 'react-router-dom';
 import api from '../lib/axios';
+import Badge from '../components/ui/Badge';
+import { SkeletonStats } from '../components/ui/LoadingSkeleton';
+import { useTheme } from '../context/ThemeContext';
 
 const mockData = {
-  "pendingApprovals": 4,
-  "activeRFQs": 7,
-  "posThisMonth": 3,
-  "totalInvoices": 12,
-  "recentRFQs": [
-    { "id": 1, "rfq_number": "RFQ-2024-0001", "title": "Office Supplies", "status": "open", "deadline": "2024-12-30" },
-    { "id": 2, "rfq_number": "RFQ-2024-0002", "title": "IT Equipment", "status": "under_review", "deadline": "2024-12-28" },
-    { "id": 3, "rfq_number": "RFQ-2024-0003", "title": "Marketing Materials", "status": "approved", "deadline": "2024-12-25" },
-    { "id": 4, "rfq_number": "RFQ-2024-0004", "title": "Furniture", "status": "rejected", "deadline": "2024-12-20" }
+  pendingApprovals: 4,
+  activeRFQs: 7,
+  posThisMonth: 3,
+  totalInvoices: 12,
+  recentRFQs: [
+    { id: 1, rfq_number: 'RFQ-2024-0001', title: 'Office Supplies', status: 'open', deadline: '2024-12-30' },
+    { id: 2, rfq_number: 'RFQ-2024-0002', title: 'IT Equipment', status: 'under_review', deadline: '2024-12-28' },
+    { id: 3, rfq_number: 'RFQ-2024-0003', title: 'Marketing Materials', status: 'approved', deadline: '2024-12-25' },
+    { id: 4, rfq_number: 'RFQ-2024-0004', title: 'Furniture', status: 'rejected', deadline: '2024-12-20' },
   ],
-  "monthlySpending": [
-    { "month": "Jan", "amount": 45000 },
-    { "month": "Feb", "amount": 62000 },
-    { "month": "Mar", "amount": 54000 },
-    { "month": "Apr", "amount": 81000 },
-    { "month": "May", "amount": 95000 },
-    { "month": "Jun", "amount": 110000 }
+  monthlySpending: [
+    { month: 'Jan', amount: 45000 },
+    { month: 'Feb', amount: 62000 },
+    { month: 'Mar', amount: 54000 },
+    { month: 'Apr', amount: 81000 },
+    { month: 'May', amount: 95000 },
+    { month: 'Jun', amount: 110000 },
   ],
-  "overdueInvoices": [
-    { "id": 1, "invoice_number": "INV-0014", "vendor": "TechSupplies Ltd", "amount": 15000, "days_overdue": 12 },
-    { "id": 2, "invoice_number": "INV-0021", "vendor": "Office Mart", "amount": 4500, "days_overdue": 5 },
-    { "id": 3, "invoice_number": "INV-0008", "vendor": "BuildRight Co", "amount": 32000, "days_overdue": 18 }
-  ]
+  overdueInvoices: [
+    { id: 1, invoice_number: 'INV-0014', vendor: 'TechSupplies Ltd', amount: 15000, days_overdue: 12 },
+    { id: 2, invoice_number: 'INV-0021', vendor: 'Office Mart', amount: 4500, days_overdue: 5 },
+    { id: 3, invoice_number: 'INV-0008', vendor: 'BuildRight Co', amount: 32000, days_overdue: 18 },
+  ],
 };
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { isDark } = useTheme();
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const response = await api.get('/dashboard/stats');
         if (response.success && response.data) {
-          // Merge with mockData so any missing fields don't crash .map() calls
           setData({
             ...mockData,
             ...response.data,
@@ -52,7 +60,7 @@ const Dashboard = () => {
         } else {
           setData(mockData);
         }
-      } catch (error) {
+      } catch {
         setData(mockData);
       } finally {
         setLoading(false);
@@ -61,210 +69,259 @@ const Dashboard = () => {
     fetchStats();
   }, []);
 
+  const chartColors = {
+    bar:     isDark ? '#4F8A73' : '#2D4A3E',
+    grid:    isDark ? '#2C3232' : '#E8E4DC',
+    axis:    isDark ? '#808078' : '#6B675F',
+    tooltip: isDark ? '#1E2222' : '#FFFFFF',
+    border:  isDark ? '#2C3232' : '#E8E4DC',
+  };
+
   if (loading) {
-    return <DashboardSkeleton />;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <SkeletonStats count={4} />
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '20px' }}>
+          <div className="card" style={{ height: '320px' }} />
+          <div className="card" style={{ height: '320px' }} />
+        </div>
+      </div>
+    );
   }
 
+  const stats = [
+    { title: 'Pending Approvals', value: data.pendingApprovals, icon: Clock, trend: 'up', color: 'var(--warning)', link: '/approvals' },
+    { title: 'Active RFQs', value: data.activeRFQs, icon: FileText, trend: 'up', color: 'var(--info)', link: '/rfqs' },
+    { title: 'POs This Month', value: data.posThisMonth, icon: ShoppingCart, trend: 'down', color: 'var(--purple)', link: '/po' },
+    { title: 'Unpaid Invoices', value: data.unpaidInvoices ?? data.totalInvoices, icon: Receipt, trend: 'up', color: 'var(--danger)', link: '/invoices' },
+  ];
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-4 mb-2">
-        <Link to="/rfq/new" className="btn bg-surface border border-border text-text-primary hover:border-primary hover:text-primary transition-colors flex items-center gap-2 rounded-lg px-4 py-2 shadow-sm">
-          <FilePlus size={18} /> New RFQ
-        </Link>
-        <button className="btn bg-surface border border-border text-text-primary hover:border-primary hover:text-primary transition-colors flex items-center gap-2 rounded-lg px-4 py-2 shadow-sm">
-          <Users size={18} /> Add Vendor
-        </button>
-        <button className="btn bg-surface border border-border text-text-primary hover:border-primary hover:text-primary transition-colors flex items-center gap-2 rounded-lg px-4 py-2 shadow-sm">
-          <Receipt size={18} /> New Invoice
-        </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+
+      {/* KPI Stat Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+        {stats.map((stat, i) => (
+          <StatCard key={stat.title} {...stat} delay={i * 60} />
+        ))}
       </div>
 
-      {/* Row 1: Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Pending Approvals" value={data.pendingApprovals ?? data.pendingApprovals} icon={Clock} trend="up" />
-        <StatCard title="Active RFQs" value={data.activeRFQs} icon={FileText} trend="up" />
-        <StatCard title="POs This Month" value={data.posThisMonth} icon={ShoppingCart} trend="down" />
-        <StatCard title="Unpaid Invoices" value={data.unpaidInvoices ?? data.totalInvoices} icon={Receipt} trend="up" />
-      </div>
-
-      {/* Row 2: RFQs Table & Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Recent RFQs Table */}
-        <div className="lg:col-span-3 bg-surface border border-border rounded-xl p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-text-primary mb-4">Recent RFQs</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-border text-text-secondary text-sm">
-                  <th className="pb-3 font-medium">RFQ Number</th>
-                  <th className="pb-3 font-medium">Title</th>
-                  <th className="pb-3 font-medium">Status</th>
-                  <th className="pb-3 font-medium">Deadline</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recentRFQs.map((rfq) => (
-                  <tr key={rfq.id} className="border-b border-border/50 last:border-0 text-sm hover:bg-background/50 transition-colors">
-                    <td className="py-3 font-mono text-text-primary">{rfq.rfq_number}</td>
-                    <td className="py-3 text-text-primary font-medium">{rfq.title}</td>
-                    <td className="py-3">
-                      <StatusBadge status={rfq.status} />
-                    </td>
-                    <td className="py-3 font-mono text-text-secondary">
-                      {new Date(rfq.deadline).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* Row 2: Table + Chart */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }} className="md:grid-cols-5-2">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+          {/* Responsive: mobile stacked, desktop side-by-side */}
+          <RecentRFQsCard rfqs={data.recentRFQs} />
         </div>
+      </div>
 
-        {/* Monthly Spending Chart (6 months) */}
-        <div className="lg:col-span-2 bg-surface border border-border rounded-xl p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-text-primary mb-4">Monthly Spending</h3>
-          <div className="h-64 mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.monthlySpending} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E8E4DC" vertical={false} />
-                <XAxis dataKey="month" stroke="#5A5853" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
-                <YAxis 
-                  stroke="#5A5853" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false}
-                  tickFormatter={(val) => `₹${val / 1000}k`}
-                  className="font-mono"
-                  tickMargin={10}
+      {/* Chart + Table in row */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0,3fr) minmax(0,2fr)',
+        gap: '16px',
+      }}
+        className="rfq-chart-row"
+      >
+        {/* Monthly Spending Chart */}
+        <div className="card" style={{ padding: '24px', minWidth: 0 }}>
+          <div style={{ marginBottom: '20px' }}>
+            <h3 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '16px', fontWeight: 700,
+              color: 'var(--txt)', margin: 0
+            }}>
+              Monthly Spending
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--txt-2)', marginTop: '2px' }}>
+              Procurement spend over the last 6 months
+            </p>
+          </div>
+          <div style={{ height: '220px' }}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <BarChart data={data.monthlySpending} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+                <XAxis
+                  dataKey="month" stroke={chartColors.axis}
+                  fontSize={12} tickLine={false} axisLine={false}
+                  tickMargin={8} fontFamily="var(--font-mono)"
                 />
-                <Tooltip 
-                  cursor={{ fill: '#E8E4DC', opacity: 0.5 }}
-                  contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E8E4DC', borderRadius: '0.5rem', color: '#1A1917' }}
-                  itemStyle={{ color: '#2D4A3E', fontFamily: 'IBM Plex Mono, monospace', fontWeight: 'bold' }}
-                  formatter={(value) => [`₹${value.toLocaleString()}`, 'Amount']}
-                  labelStyle={{ color: '#5A5853', marginBottom: '4px' }}
+                <YAxis
+                  stroke={chartColors.axis} fontSize={11}
+                  tickLine={false} axisLine={false}
+                  tickFormatter={v => `₹${v / 1000}k`}
+                  fontFamily="var(--font-mono)" tickMargin={8}
                 />
-                <Bar dataKey="amount" fill="#2D4A3E" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Tooltip
+                  cursor={{ fill: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)' }}
+                  contentStyle={{
+                    backgroundColor: chartColors.tooltip,
+                    borderColor: chartColors.border,
+                    borderRadius: '10px',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '13px',
+                    color: 'var(--txt)',
+                  }}
+                  itemStyle={{ color: chartColors.bar, fontFamily: 'var(--font-mono)', fontWeight: 600 }}
+                  formatter={v => [`₹${v.toLocaleString()}`, 'Amount']}
+                  labelStyle={{ color: 'var(--txt-2)', marginBottom: '4px', fontWeight: 500 }}
+                />
+                <Bar dataKey="amount" fill={chartColors.bar} radius={[5, 5, 0, 0]} maxBarSize={44} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
 
-      {/* Row 3: Overdue Invoices (Replaced Recent Activity) */}
-      <div className="bg-surface border border-border rounded-xl p-6 shadow-sm">
-        <h3 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
-          <AlertTriangle size={20} className="text-warning" />
-          Overdue Invoices
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {data.overdueInvoices.map((inv) => (
-            <div key={inv.id} className="bg-background border border-danger/20 rounded-lg p-4 hover:border-danger/50 transition-colors">
-              <div className="flex justify-between items-start mb-2">
-                <span className="font-mono text-text-primary font-medium">{inv.invoice_number}</span>
-                <span className="text-xs font-medium text-danger bg-danger/10 px-2 py-0.5 rounded-full border border-danger/20">
-                  {inv.days_overdue} days late
-                </span>
-              </div>
-              <p className="text-sm text-text-secondary mb-3">{inv.vendor}</p>
-              <p className="text-lg font-mono font-bold text-text-primary">
-                ₹{inv.amount.toLocaleString()}
-              </p>
+        {/* Overdue Invoices */}
+        <div className="card" style={{ padding: '24px', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '8px',
+              backgroundColor: 'rgba(192,57,43,0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <AlertTriangle size={16} color="var(--danger)" />
             </div>
-          ))}
-          {data.overdueInvoices.length === 0 && (
-             <div className="col-span-3 text-center py-8 text-text-secondary">
-               No overdue invoices!
-             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StatCard = ({ title, value, icon: Icon, trend }) => (
-  <div className="bg-surface border border-border rounded-xl p-6 flex flex-col relative overflow-hidden group hover:border-primary/50 transition-colors duration-300 shadow-sm">
-    <div className="flex justify-between items-start mb-4">
-      <div className="p-2.5 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-colors duration-300">
-        <Icon size={22} />
-      </div>
-      <div className={`p-1 rounded-full ${trend === 'up' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
-        {trend === 'up' ? <ArrowUpRight size={18} /> : <ArrowDownRight size={18} />}
-      </div>
-    </div>
-    <div>
-      <h4 className="text-sm font-medium text-text-secondary mb-1">{title}</h4>
-      <p className="text-3xl font-bold text-text-primary font-mono tracking-tight">{value}</p>
-    </div>
-  </div>
-);
-
-const StatusBadge = ({ status }) => {
-  const styles = {
-    open: 'bg-[#2C5F8A]/10 text-[#2C5F8A] border border-[#2C5F8A]/20',
-    under_review: 'bg-[#B87333]/10 text-[#B87333] border border-[#B87333]/20',
-    approved: 'bg-[#2D4A3E]/10 text-[#2D4A3E] border border-[#2D4A3E]/20',
-    rejected: 'bg-[#C0392B]/10 text-[#C0392B] border border-[#C0392B]/20',
-  };
-
-  const labels = {
-    open: 'Open',
-    under_review: 'Under Review',
-    approved: 'Approved',
-    rejected: 'Rejected',
-  };
-
-  return (
-    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${styles[status] || styles.open}`}>
-      {labels[status] || status}
-    </span>
-  );
-};
-
-const DashboardSkeleton = () => (
-  <div className="space-y-6 animate-pulse">
-    <div className="flex gap-4 mb-2">
-      <div className="w-24 h-10 bg-surface border border-border rounded-lg"></div>
-      <div className="w-24 h-10 bg-surface border border-border rounded-lg"></div>
-      <div className="w-24 h-10 bg-surface border border-border rounded-lg"></div>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {[1, 2, 3, 4].map(i => (
-        <div key={i} className="bg-surface border border-border rounded-xl p-6 h-[140px] flex flex-col justify-between">
-          <div className="w-10 h-10 bg-border rounded-lg"></div>
-          <div>
-            <div className="w-24 h-4 bg-border rounded mb-2"></div>
-            <div className="w-12 h-8 bg-border rounded"></div>
+            <div>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, color: 'var(--txt)', margin: 0 }}>
+                Overdue Invoices
+              </h3>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {data.overdueInvoices.length === 0 ? (
+              <p style={{ fontSize: '14px', color: 'var(--txt-2)', textAlign: 'center', padding: '24px 0' }}>
+                🎉 No overdue invoices!
+              </p>
+            ) : (
+              data.overdueInvoices.map(inv => (
+                <div key={inv.id} style={{
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  border: '1.5px solid rgba(192,57,43,0.15)',
+                  backgroundColor: 'rgba(192,57,43,0.04)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 600, color: 'var(--txt)' }}>
+                      {inv.invoice_number}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--txt-2)', marginTop: '2px' }}>
+                      {inv.vendor}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 700, color: 'var(--txt)' }}>
+                      ₹{inv.amount.toLocaleString()}
+                    </div>
+                    <span className="badge badge-danger" style={{ fontSize: '11px', marginTop: '4px' }}>
+                      {inv.days_overdue}d late
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
-      ))}
+      </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .rfq-chart-row { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      <div className="lg:col-span-3 bg-surface border border-border rounded-xl p-6 h-[340px]">
-        <div className="w-32 h-6 bg-border rounded mb-6"></div>
-        <div className="space-y-6">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="flex justify-between">
-              <div className="w-24 h-4 bg-border rounded"></div>
-              <div className="w-32 h-4 bg-border rounded"></div>
-              <div className="w-20 h-5 bg-border rounded-full"></div>
-              <div className="w-24 h-4 bg-border rounded"></div>
-            </div>
+  );
+};
+
+/* ── Stat Card ─────────────────────────────────────────────── */
+const StatCard = ({ title, value, icon: Icon, trend, color, link, delay = 0 }) => (
+  <Link
+    to={link}
+    className="card animate-fade-in"
+    style={{
+      display: 'block',
+      textDecoration: 'none',
+      animationDelay: `${delay}ms`,
+      cursor: 'pointer',
+    }}
+  >
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+      <div style={{
+        width: '40px', height: '40px', borderRadius: '10px',
+        backgroundColor: `${color}18`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+        transition: 'background-color 0.2s',
+      }}>
+        <Icon size={20} color={color} />
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '2px',
+        color: trend === 'up' ? 'var(--success)' : 'var(--danger)',
+        fontSize: '12px', fontWeight: 600,
+      }}>
+        {trend === 'up' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+      </div>
+    </div>
+    <div style={{ fontSize: '13px', color: 'var(--txt-2)', fontWeight: 500, marginBottom: '6px' }}>
+      {title}
+    </div>
+    <div style={{
+      fontFamily: 'var(--font-mono)', fontSize: '28px', fontWeight: 700,
+      color: 'var(--txt)', letterSpacing: '-0.02em', lineHeight: 1,
+    }}>
+      {value ?? '—'}
+    </div>
+  </Link>
+);
+
+/* ── Recent RFQs Card ─────────────────────────────────────── */
+const RecentRFQsCard = ({ rfqs }) => (
+  <div className="card" style={{ padding: '24px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+      <div>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, color: 'var(--txt)', margin: 0 }}>
+          Recent RFQs
+        </h3>
+        <p style={{ fontSize: '13px', color: 'var(--txt-2)', marginTop: '2px' }}>Latest request for quotations</p>
+      </div>
+      <Link to="/rfqs" style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        View all <TrendingUp size={14} />
+      </Link>
+    </div>
+    <div style={{ overflowX: 'auto' }}>
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>RFQ Number</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Deadline</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rfqs.map(rfq => (
+            <tr key={rfq.id}>
+              <td>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--txt)', fontWeight: 500 }}>
+                  {rfq.rfq_number}
+                </span>
+              </td>
+              <td style={{ fontWeight: 500, color: 'var(--txt)' }}>{rfq.title}</td>
+              <td><Badge status={rfq.status} /></td>
+              <td>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--txt-2)' }}>
+                  {new Date(rfq.deadline).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                </span>
+              </td>
+            </tr>
           ))}
-        </div>
-      </div>
-      <div className="lg:col-span-2 bg-surface border border-border rounded-xl p-6 h-[340px]">
-        <div className="w-48 h-6 bg-border rounded mb-6"></div>
-        <div className="w-full h-56 bg-border rounded flex items-end justify-between px-4 pb-2">
-           <div className="w-10 h-32 bg-border/50 rounded-t-sm"></div>
-           <div className="w-10 h-48 bg-border/50 rounded-t-sm"></div>
-           <div className="w-10 h-40 bg-border/50 rounded-t-sm"></div>
-           <div className="w-10 h-56 bg-border/50 rounded-t-sm"></div>
-        </div>
-      </div>
+        </tbody>
+      </table>
     </div>
   </div>
 );

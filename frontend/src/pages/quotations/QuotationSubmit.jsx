@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Send, Plus, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../../lib/axios';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
 
 const mockRFQ = {
   rfq_number: 'RFQ-2026-001',
@@ -19,44 +21,30 @@ const QuotationSubmit = () => {
   const navigate = useNavigate();
 
   const [rfq, setRfq] = useState(mockRFQ);
-  const [loading, setLoading]   = useState(false);
-  const [toast, setToast]       = useState(null); // { type, msg }
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState(null); // { type, msg }
   const [taxPercent, setTaxPercent] = useState(18);
-  const [notes, setNotes]       = useState('');
+  const [notes, setNotes] = useState('');
 
-  const [items, setItems] = useState(
-    mockRFQ.items.map(item => ({
-      ...item,
-      unit_price:    0,
-      delivery_days: 7,
-    }))
-  );
+  const [items, setItems] = useState([]);
 
   useEffect(() => {
-    const fetchRFQ = async () => {
-      try {
-        const res = await api.get(`/rfq/${id}`);
+    api.get(`/rfq/${id}`)
+      .then(res => {
         if (res.success && res.data) {
           setRfq(res.data);
           if (res.data.items?.length) {
-            setItems(res.data.items.map(item => ({
-              ...item,
-              unit_price: 0,
-              delivery_days: 7,
-            })));
+            setItems(res.data.items.map(item => ({ ...item, unit_price: 0, delivery_days: 7 })));
           } else {
-            setItems([{
-              id: Date.now(),
-              name: res.data.title || 'Requested Item',
-              quantity: res.data.quantity || 1,
-              unit_price: 0,
-              delivery_days: 7
-            }]);
+            setItems([{ id: Date.now(), name: res.data.title || 'Requested Item', quantity: res.data.quantity || 1, unit_price: 0, delivery_days: 7 }]);
           }
+        } else {
+          setItems(mockRFQ.items.map(item => ({ ...item, unit_price: 0, delivery_days: 7 })));
         }
-      } catch { /* stay with mock */ }
-    };
-    if (id && id !== 'demo') fetchRFQ();
+      })
+      .catch(() => setItems(mockRFQ.items.map(item => ({ ...item, unit_price: 0, delivery_days: 7 }))))
+      .finally(() => setLoading(false));
   }, [id]);
 
   const handleItemChange = (index, field, value) => {
@@ -65,15 +53,11 @@ const QuotationSubmit = () => {
     setItems(updated);
   };
 
-  const addItem = () =>
-    setItems([...items, { id: Date.now(), name: '', quantity: 1, unit_price: 0, delivery_days: 7 }]);
+  const addItem = () => setItems([...items, { id: Date.now(), name: '', quantity: 1, unit_price: 0, delivery_days: 7 }]);
+  const removeItem = (index) => setItems(items.filter((_, i) => i !== index));
 
-  const removeItem = (index) =>
-    setItems(items.filter((_, i) => i !== index));
-
-  // Totals
-  const subtotal   = items.reduce((s, it) => s + (parseFloat(it.unit_price || 0) * parseInt(it.quantity || 0)), 0);
-  const taxAmount  = subtotal * (parseFloat(taxPercent || 0) / 100);
+  const subtotal = items.reduce((s, it) => s + (parseFloat(it.unit_price || 0) * parseInt(it.quantity || 0)), 0);
+  const taxAmount = subtotal * (parseFloat(taxPercent || 0) / 100);
   const grandTotal = subtotal + taxAmount;
 
   const showToast = (type, msg) => {
@@ -86,16 +70,11 @@ const QuotationSubmit = () => {
       showToast('error', 'Please enter unit price for all items before submitting.');
       return;
     }
-    setLoading(true);
+    setSubmitting(true);
     try {
       await api.post(`/rfq/${id}/quotations`, {
-        items,
-        subtotal,
-        tax_percent:  taxPercent,
-        tax_amount:   taxAmount,
-        total_price:  grandTotal,
-        notes,
-        status: isDraft ? 'draft' : 'submitted',
+        items, subtotal, tax_percent: taxPercent, tax_amount: taxAmount,
+        total_price: grandTotal, notes, status: isDraft ? 'draft' : 'submitted',
       });
       showToast('success', isDraft ? 'Draft saved successfully!' : 'Quotation submitted successfully!');
       setTimeout(() => navigate('/quotations'), 1200);
@@ -103,213 +82,162 @@ const QuotationSubmit = () => {
       showToast('success', isDraft ? 'Draft saved!' : 'Quotation submitted!');
       setTimeout(() => navigate('/quotations'), 1200);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const deadlineDate = rfq.deadline
-    ? new Date(rfq.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-    : '';
+  const deadlineDate = rfq.deadline ? new Date(rfq.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+
+  if (loading) {
+    return (
+      <div className="animate-fade-in" style={{ maxWidth: '900px', margin: '0 auto' }}>
+        <div className="skeleton" style={{ height: '80px', marginBottom: '24px', borderRadius: '12px' }} />
+        <div className="skeleton" style={{ height: '500px', borderRadius: '16px' }} />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-5xl mx-auto">
-
-      {/* Toast */}
+    <div className="animate-fade-in" style={{ maxWidth: '900px', margin: '0 auto' }}>
       {toast && (
-        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl border text-sm font-medium transition-all
-          ${toast.type === 'success'
-            ? 'bg-success/10 border-success/30 text-success'
-            : 'bg-danger/10 border-danger/30 text-danger'}`}>
-          {toast.type === 'success'
-            ? <CheckCircle size={18} />
-            : <AlertCircle size={18} />}
+        <div style={{
+          position: 'fixed', top: '24px', right: '24px', zIndex: 100,
+          display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '12px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: 600,
+          backgroundColor: toast.type === 'success' ? 'var(--surface)' : 'var(--surface)',
+          borderLeft: `4px solid var(--${toast.type})`,
+          boxShadow: 'var(--shadow-lg)',
+          color: 'var(--txt)',
+          animation: 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}>
+          {toast.type === 'success' ? <CheckCircle size={18} color="var(--success)" /> : <AlertCircle size={18} color="var(--danger)" />}
           {toast.msg}
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="flex items-start gap-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface rounded-lg transition-colors mt-1"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Submit Quotation</h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            RFQ: {rfq.title}
-            {deadlineDate && <span className="text-warning ml-2">— deadline {deadlineDate}</span>}
-          </p>
+      <PageHeader
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button onClick={() => navigate(-1)} style={{
+              padding: '6px', borderRadius: '8px', border: '1.5px solid var(--border)', backgroundColor: 'var(--surface)', color: 'var(--txt-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <ArrowLeft size={16} />
+            </button>
+            Submit Quotation
+          </div>
+        }
+        subtitle={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+            <span>RFQ: {rfq.title}</span>
+            {deadlineDate && (
+              <>
+                <span style={{ color: 'var(--border-s)' }}>•</span>
+                <span style={{ color: 'var(--warning)', fontWeight: 600 }}>Deadline {deadlineDate}</span>
+              </>
+            )}
+          </div>
+        }
+      />
+
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {/* Banner */}
+        <div style={{ backgroundColor: 'var(--primary-m)', padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
+          <h4 style={{ margin: '0 0 4px 0', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>RFQ Summary</h4>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--txt)' }}>{rfq.description}</p>
         </div>
-      </div>
 
-      <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-
-        {/* RFQ Summary Banner */}
-        <div className="bg-primary/5 border-b border-border px-6 py-4">
-          <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">RFQ Summary</p>
-          <p className="text-sm text-text-secondary">{rfq.description}</p>
-        </div>
-
-        <div className="p-6 space-y-6">
-
-          {/* Quotation Table */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-text-primary">Your Quotation</h3>
-              <button
-                onClick={addItem}
-                className="flex items-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors border border-primary/20"
-              >
-                <Plus size={14} /> Add Item
-              </button>
-            </div>
-
-            <div className="border border-border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-background border-b border-border text-text-secondary">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium w-2/5 border-r border-border">Item</th>
-                    <th className="px-4 py-3 text-center font-medium border-r border-border">Qty</th>
-                    <th className="px-4 py-3 text-left font-medium border-r border-border">Unit Price (₹)</th>
-                    <th className="px-4 py-3 text-right font-medium border-r border-border">Total</th>
-                    <th className="px-4 py-3 text-center font-medium border-r border-border">Delivery (days)</th>
-                    <th className="px-4 py-3 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {items.map((item, idx) => {
-                    const rowTotal = parseFloat(item.unit_price || 0) * parseInt(item.quantity || 0);
-                    return (
-                      <tr key={item.id} className="bg-surface hover:bg-background/40 transition-colors">
-                        <td className="px-4 py-3 border-r border-border">
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={e => handleItemChange(idx, 'name', e.target.value)}
-                            className="w-full bg-transparent border-none p-0 focus:ring-0 text-text-primary font-medium"
-                            placeholder="Item name"
-                          />
-                        </td>
-                        <td className="px-4 py-3 border-r border-border text-center">
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={e => handleItemChange(idx, 'quantity', e.target.value)}
-                            className="w-16 bg-transparent border-none p-0 focus:ring-0 text-center font-mono text-text-primary"
-                            min="1"
-                          />
-                        </td>
-                        <td className="px-4 py-3 border-r border-border">
-                          <input
-                            type="number"
-                            value={item.unit_price || ''}
-                            onChange={e => handleItemChange(idx, 'unit_price', e.target.value)}
-                            className="w-full bg-transparent border-none p-0 focus:ring-0 font-mono text-text-primary"
-                            placeholder="0"
-                            min="0"
-                          />
-                        </td>
-                        <td className="px-4 py-3 border-r border-border text-right font-mono font-semibold text-text-primary">
-                          ₹{rowTotal.toLocaleString()}
-                        </td>
-                        <td className="px-4 py-3 border-r border-border">
-                          <input
-                            type="number"
-                            value={item.delivery_days}
-                            onChange={e => handleItemChange(idx, 'delivery_days', e.target.value)}
-                            className="w-16 mx-auto block bg-transparent border-none p-0 focus:ring-0 text-center font-mono text-text-primary"
-                            min="1"
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => removeItem(idx)}
-                            className="p-1 text-text-secondary hover:text-danger hover:bg-danger/10 rounded transition-colors"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+        <div style={{ padding: '24px' }}>
+          {/* Table Header Area */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 700, color: 'var(--txt)' }}>Your Quotation</h3>
+            <Button variant="ghost" icon={<Plus size={14} />} onClick={addItem} size="sm">Add Item</Button>
           </div>
 
-          {/* Tax + Notes + Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div style={{ borderRadius: '12px', border: '1.5px solid var(--border)', overflow: 'hidden', marginBottom: '32px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+              <thead style={{ backgroundColor: 'var(--surface-2)', borderBottom: '1.5px solid var(--border)' }}>
+                <tr>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--txt-2)', width: '40%', borderRight: '1px solid var(--border)' }}>Item</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--txt-2)', textAlign: 'center', borderRight: '1px solid var(--border)' }}>Qty</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--txt-2)', borderRight: '1px solid var(--border)' }}>Unit Price (₹)</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--txt-2)', textAlign: 'right', borderRight: '1px solid var(--border)' }}>Total</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--txt-2)', textAlign: 'center', borderRight: '1px solid var(--border)' }}>Delivery (days)</th>
+                  <th style={{ padding: '12px 16px', width: '48px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, idx) => {
+                  const rowTotal = parseFloat(item.unit_price || 0) * parseInt(item.quantity || 0);
+                  return (
+                    <tr key={item.id} style={{ borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none', backgroundColor: 'var(--surface)', transition: 'background-color 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--surface-2)'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--surface)'}>
+                      <td style={{ padding: '8px 16px', borderRight: '1px solid var(--border)' }}>
+                        <input type="text" value={item.name} onChange={e => handleItemChange(idx, 'name', e.target.value)} style={{ width: '100%', border: 'none', background: 'transparent', padding: '6px', fontWeight: 500, color: 'var(--txt)' }} placeholder="Item name" />
+                      </td>
+                      <td style={{ padding: '8px 16px', borderRight: '1px solid var(--border)' }}>
+                        <input type="number" value={item.quantity} onChange={e => handleItemChange(idx, 'quantity', e.target.value)} style={{ width: '100%', border: 'none', background: 'transparent', padding: '6px', textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--txt)' }} min="1" />
+                      </td>
+                      <td style={{ padding: '8px 16px', borderRight: '1px solid var(--border)' }}>
+                        <input type="number" value={item.unit_price || ''} onChange={e => handleItemChange(idx, 'unit_price', e.target.value)} style={{ width: '100%', border: 'none', background: 'transparent', padding: '6px', fontFamily: 'var(--font-mono)', color: 'var(--txt)' }} placeholder="0" min="0" />
+                      </td>
+                      <td style={{ padding: '14px 16px', borderRight: '1px solid var(--border)', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--txt)' }}>
+                        ₹{rowTotal.toLocaleString()}
+                      </td>
+                      <td style={{ padding: '8px 16px', borderRight: '1px solid var(--border)' }}>
+                        <input type="number" value={item.delivery_days} onChange={e => handleItemChange(idx, 'delivery_days', e.target.value)} style={{ width: '100%', border: 'none', background: 'transparent', padding: '6px', textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--txt)' }} min="1" />
+                      </td>
+                      <td style={{ padding: '8px 0', textAlign: 'center' }}>
+                        <button onClick={() => removeItem(idx)} style={{ background: 'none', border: 'none', color: 'var(--txt-m)', cursor: 'pointer', padding: '6px', borderRadius: '6px' }}
+                          onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.backgroundColor = 'rgba(192,57,43,0.1)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-m)'; e.currentTarget.style.backgroundColor = 'transparent'; }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
             {/* Left: Tax & Notes */}
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1.5">Tax / GST %</label>
-                <input
-                  type="number"
-                  value={taxPercent}
-                  onChange={e => setTaxPercent(e.target.value)}
-                  className="w-32"
-                  min="0"
-                  max="100"
-                  placeholder="18"
-                />
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--txt)', marginBottom: '6px' }}>Tax / GST %</label>
+                <input type="number" value={taxPercent} onChange={e => setTaxPercent(e.target.value)} min="0" max="100" placeholder="18" style={{ width: '120px' }} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1.5">Note / Terms</label>
-                <textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  className="w-full h-28 resize-none"
-                  placeholder="Payment terms: 20 days net..."
-                />
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--txt)', marginBottom: '6px' }}>Note / Terms</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Payment terms: 20 days net..." style={{ width: '100%', height: '100px', resize: 'none' }} />
               </div>
             </div>
 
-            {/* Right: Price Summary */}
-            <div className="bg-background border border-border rounded-xl p-6 flex flex-col justify-center">
-              <h4 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-4">Price Summary</h4>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-text-secondary">Subtotal</span>
-                  <span className="font-mono font-medium text-text-primary">₹{subtotal.toLocaleString()}</span>
+            {/* Right: Summary */}
+            <div style={{ backgroundColor: 'var(--surface-2)', borderRadius: '12px', padding: '24px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <h4 style={{ margin: '0 0 16px 0', fontSize: '11px', fontWeight: 700, color: 'var(--txt-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price Summary</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: 'var(--txt-2)' }}>Subtotal</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--txt)' }}>₹{subtotal.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-text-secondary">GST ({taxPercent}%)</span>
-                  <span className="font-mono font-medium text-text-primary">
-                    ₹{taxAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: 'var(--txt-2)' }}>GST ({taxPercent}%)</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--txt)' }}>₹{taxAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
-                <div className="border-t border-border pt-3 flex justify-between items-center">
-                  <span className="font-bold text-text-primary">Grand Total</span>
-                  <span className="font-mono font-bold text-xl text-primary">
-                    ₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1.5px solid var(--border)', paddingTop: '12px', marginTop: '4px' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--txt)' }}>Grand Total</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '20px', color: 'var(--primary)' }}>₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3 pt-4 border-t border-border">
-            <button
-              onClick={() => handleSubmit(false)}
-              disabled={loading}
-              className="btn btn-primary flex items-center gap-2 px-8"
-            >
-              <Send size={16} />
-              {loading ? 'Submitting...' : 'Submit Quotation'}
-            </button>
-            <button
-              onClick={() => handleSubmit(true)}
-              disabled={loading}
-              className="btn border border-border bg-background text-text-primary hover:border-primary hover:text-primary transition-colors flex items-center gap-2 px-8"
-            >
-              <Save size={16} />
-              Save Draft
-            </button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', paddingTop: '24px', marginTop: '24px', borderTop: '1px solid var(--border)' }}>
+            <Button icon={<Send size={16} />} loading={submitting} onClick={() => handleSubmit(false)}>Submit Quotation</Button>
+            <Button variant="ghost" icon={<Save size={16} />} disabled={submitting} onClick={() => handleSubmit(true)}>Save Draft</Button>
           </div>
-
         </div>
       </div>
     </div>

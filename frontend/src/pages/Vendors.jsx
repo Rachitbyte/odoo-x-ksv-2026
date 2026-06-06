@@ -1,16 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, X, Star, AlertTriangle, Building2, User, Phone, Mail, Hash } from 'lucide-react';
+import {
+  Search, Plus, Edit2, Trash2, Star, AlertTriangle,
+  Building2, User, Phone, Mail, Hash, Filter
+} from 'lucide-react';
 import api from '../lib/axios';
-import clsx from 'clsx';
 import { useAuth } from '../context/AuthContext';
+import PageHeader from '../components/ui/PageHeader';
+import Modal from '../components/ui/Modal';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
+import EmptyState from '../components/ui/EmptyState';
 
 const initialMockData = [
-  { id: 1, company_name: "TechSupplies Ltd", contact_person: "Amit Shah", email: "amit@tech.com", phone: "9876543210", category: "IT", gst_number: "GST123456", status: "active", rating: 4.5 },
-  { id: 2, company_name: "Office Mart", contact_person: "Priya Patel", email: "priya@officemart.com", phone: "9123456789", category: "Stationery", gst_number: "GST789012", status: "inactive", rating: 3.2 },
-  { id: 3, company_name: "BuildRight Co", contact_person: "Raj Mehta", email: "raj@buildright.com", phone: "9988776655", category: "Construction", gst_number: "GST345678", status: "active", rating: 4.8 }
+  { id: 1, company_name: 'TechSupplies Ltd',  contact_person: 'Amit Shah',    email: 'amit@tech.com',        phone: '9876543210', category: 'IT',            gst_number: 'GST123456', status: 'active',   rating: 4.5 },
+  { id: 2, company_name: 'Office Mart',        contact_person: 'Priya Patel',  email: 'priya@officemart.com', phone: '9123456789', category: 'Stationery',    gst_number: 'GST789012', status: 'inactive', rating: 3.2 },
+  { id: 3, company_name: 'BuildRight Co',      contact_person: 'Raj Mehta',    email: 'raj@buildright.com',   phone: '9988776655', category: 'Construction',  gst_number: 'GST345678', status: 'active',   rating: 4.8 },
 ];
 
-const Vendors = () => {
+const emptyForm = {
+  company_name: '', contact_person: '', email: '',
+  phone: '', gst_number: '', category: '', status: 'active',
+};
+
+const Vendors = ({ openAddModal }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
@@ -18,378 +30,357 @@ const Vendors = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  
-  // Modals state
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentVendor, setCurrentVendor] = useState(null);
-  
-  // Fetch vendors
+
   useEffect(() => {
-    const fetchVendors = async () => {
-      try {
-        const res = await api.get('/vendors');
-        if (res.success && res.data) {
-          setVendors(res.data);
-        } else {
-          setVendors(initialMockData);
-        }
-      } catch (err) {
-        setVendors(initialMockData);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchVendors();
+    api.get('/vendors')
+      .then(res => setVendors(res.success && res.data ? res.data : initialMockData))
+      .catch(() => setVendors(initialMockData))
+      .finally(() => setLoading(false));
   }, []);
 
-  const handleOpenModal = (vendor = null) => {
-    setCurrentVendor(vendor);
-    setIsModalOpen(true);
-  };
+  useEffect(() => {
+    if (openAddModal) handleOpenModal();
+  }, [openAddModal]);
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setCurrentVendor(null);
-  };
-
-  const confirmDelete = (vendor) => {
-    setCurrentVendor(vendor);
-    setIsDeleteModalOpen(true);
-  };
+  const handleOpenModal  = (vendor = null) => { setCurrentVendor(vendor); setIsModalOpen(true); };
+  const handleCloseModal = () => { setIsModalOpen(false); setCurrentVendor(null); };
+  const confirmDelete    = (vendor)         => { setCurrentVendor(vendor); setIsDeleteModalOpen(true); };
 
   const handleDelete = async () => {
     if (!currentVendor) return;
-    try {
-      await api.delete(`/vendors/${currentVendor.id}`);
-      setVendors(vendors.filter(v => v.id !== currentVendor.id));
-    } catch (err) {
-      // Mock local delete
-      setVendors(vendors.filter(v => v.id !== currentVendor.id));
-    } finally {
-      setIsDeleteModalOpen(false);
-      setCurrentVendor(null);
-    }
+    try { await api.delete(`/vendors/${currentVendor.id}`); } catch {}
+    setVendors(vendors.filter(v => v.id !== currentVendor.id));
+    setIsDeleteModalOpen(false);
+    setCurrentVendor(null);
   };
 
   const handleSave = async (vendorData) => {
     if (currentVendor) {
-      // Edit
-      try {
-        await api.put(`/vendors/${currentVendor.id}`, vendorData);
-        setVendors(vendors.map(v => v.id === currentVendor.id ? { ...v, ...vendorData } : v));
-      } catch (err) {
-        setVendors(vendors.map(v => v.id === currentVendor.id ? { ...currentVendor, ...vendorData } : v));
-      }
+      try { await api.put(`/vendors/${currentVendor.id}`, vendorData); } catch {}
+      setVendors(vendors.map(v => v.id === currentVendor.id ? { ...v, ...vendorData } : v));
     } else {
-      // Add
       const newVendor = { ...vendorData, id: Date.now(), rating: 0 };
       try {
         const res = await api.post('/vendors', vendorData);
-        if(res.success && res.data) {
-           setVendors([...vendors, res.data]);
-        } else {
-           setVendors([...vendors, newVendor]);
-        }
-      } catch (err) {
-        setVendors([...vendors, newVendor]);
-      }
+        setVendors([...vendors, res.success && res.data ? res.data : newVendor]);
+      } catch { setVendors([...vendors, newVendor]); }
     }
     handleCloseModal();
   };
 
   const filteredVendors = vendors.filter(v => {
-    const matchesSearch = v.company_name.toLowerCase().includes(search.toLowerCase()) || v.email.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (v.company_name || '').toLowerCase().includes(search.toLowerCase()) ||
+                          (v.email || '').toLowerCase().includes(search.toLowerCase());
     const matchesCategory = categoryFilter ? v.category === categoryFilter : true;
     return matchesSearch && matchesCategory;
   });
 
-  const categories = [...new Set(vendors.map(v => v.category))];
+  const categories = [...new Set(vendors.map(v => v.category).filter(Boolean))];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold text-text-primary">Vendors</h2>
-        {isAdmin && (
-          <button onClick={() => handleOpenModal()} className="btn btn-primary flex items-center gap-2">
-            <Plus size={18} />
+    <div className="animate-fade-in">
+      <PageHeader
+        title="Vendors"
+        subtitle="Manage your supplier network and vendor relationships."
+        actions={isAdmin && (
+          <Button icon={<Plus size={16} />} onClick={() => handleOpenModal()}>
             Add Vendor
-          </button>
+          </Button>
         )}
-      </div>
+      />
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1 max-w-md">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-secondary">
-            <Search size={18} />
-          </div>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <div className="input-icon-wrap" style={{ flex: '1 1 240px', maxWidth: '360px' }}>
+          <Search size={14} className="input-icon" />
           <input
             type="text"
-            placeholder="Search vendors..."
+            placeholder="Search vendors…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full !pl-10"
+            onChange={e => setSearch(e.target.value)}
+            style={{ paddingLeft: '36px', fontSize: '13px' }}
           />
         </div>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="w-full sm:w-48 appearance-none bg-surface"
-        >
-          <option value="">All Categories</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <div className="input-icon-wrap" style={{ flex: '0 0 180px' }}>
+          <Filter size={14} className="input-icon" />
+          <select
+            value={categoryFilter}
+            onChange={e => setCategoryFilter(e.target.value)}
+            style={{ paddingLeft: '34px', fontSize: '13px' }}
+          >
+            <option value="">All Categories</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
       </div>
 
-      {/* Content */}
+      {/* Vendor Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="bg-surface border border-border rounded-xl p-6 h-[250px] animate-pulse flex flex-col">
-              <div className="w-1/2 h-6 bg-border rounded mb-6"></div>
-              <div className="space-y-4 flex-1">
-                {[1, 2, 3, 4].map(j => <div key={j} className="w-full h-4 bg-border rounded"></div>)}
-              </div>
-              <div className="mt-4 border-t border-border/50 pt-4 flex justify-between">
-                <div className="w-24 h-6 bg-border rounded-full"></div>
-                <div className="w-12 h-6 bg-border rounded-full"></div>
-              </div>
-            </div>
+            <div key={i} className="card skeleton" style={{ height: '240px', boxShadow: 'none' }} />
           ))}
         </div>
       ) : filteredVendors.length === 0 ? (
-        <div className="bg-surface border border-border rounded-xl p-12 flex flex-col items-center justify-center text-center">
-          <Building2 size={48} className="text-text-secondary mb-4" />
-          <h3 className="text-lg font-bold text-text-primary mb-2">No vendors found.</h3>
-          <p className="text-text-secondary mb-6">You don't have any vendors matching this criteria yet.</p>
-          <button onClick={() => handleOpenModal()} className="btn btn-primary">
-            Add your first vendor
-          </button>
+        <div className="card" style={{ padding: 0 }}>
+          <EmptyState
+            icon={Building2}
+            title="No vendors found"
+            description="No vendors match your search criteria. Try adjusting your filters."
+            action={isAdmin && (
+              <Button icon={<Plus size={14} />} size="sm" onClick={() => handleOpenModal()}>
+                Add Vendor
+              </Button>
+            )}
+          />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
           {filteredVendors.map(vendor => (
-            <VendorCard key={vendor.id} vendor={vendor} isAdmin={isAdmin} onEdit={() => handleOpenModal(vendor)} onDelete={() => confirmDelete(vendor)} />
+            <VendorCard key={vendor.id} vendor={vendor} isAdmin={isAdmin}
+              onEdit={() => handleOpenModal(vendor)}
+              onDelete={() => confirmDelete(vendor)}
+            />
           ))}
         </div>
       )}
 
-      {isModalOpen && <VendorModal vendor={currentVendor} onClose={handleCloseModal} onSave={handleSave} />}
-      {isDeleteModalOpen && <DeleteConfirmModal vendor={currentVendor} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDelete} />}
-    </div>
-  );
-};
+      {/* Add/Edit Modal */}
+      <VendorModal
+        open={isModalOpen}
+        vendor={currentVendor}
+        onClose={handleCloseModal}
+        onSave={handleSave}
+      />
 
-const VendorCard = ({ vendor, isAdmin, onEdit, onDelete }) => {
-  const getStatusBadge = (status) => {
-    switch(status.toLowerCase()) {
-      case 'active': return 'bg-success/10 text-success border-success/20';
-      case 'inactive': return 'bg-warning/10 text-warning border-warning/20';
-      case 'blacklisted': return 'bg-danger/10 text-danger border-danger/20';
-      default: return 'bg-primary/10 text-primary border-primary/20';
-    }
-  };
-
-  return (
-    <div className="bg-surface border border-border rounded-xl p-5 flex flex-col group hover:border-primary/50 transition-colors shadow-sm relative">
-      <div className="flex justify-between items-start mb-5">
-        <h3 className="text-lg font-bold text-text-primary pr-8 truncate">{vendor.company_name}</h3>
-        {isAdmin && (
-          <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={onEdit} className="text-text-secondary hover:text-primary transition-colors p-1.5 bg-background/50 rounded-md"><Edit2 size={16} /></button>
-            <button onClick={onDelete} className="text-text-secondary hover:text-danger transition-colors p-1.5 bg-background/50 rounded-md"><Trash2 size={16} /></button>
+      {/* Delete Confirm Modal */}
+      <Modal
+        open={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        maxWidth="400px"
+      >
+        <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+          <div style={{
+            width: '52px', height: '52px', borderRadius: '999px',
+            backgroundColor: 'rgba(192,57,43,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px',
+          }}>
+            <AlertTriangle size={24} color="var(--danger)" />
           </div>
-        )}
-      </div>
-
-      <div className="space-y-3 flex-1 mb-2">
-        <div className="flex items-center gap-3 text-sm text-text-secondary">
-          <User size={16} className="text-primary/70 shrink-0" />
-          <span className="truncate">{vendor.contact_person}</span>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 700, color: 'var(--txt)', marginBottom: '8px' }}>
+            Delete Vendor
+          </h3>
+          <p style={{ fontSize: '14px', color: 'var(--txt-2)', lineHeight: 1.6, marginBottom: '24px' }}>
+            Are you sure you want to delete <strong style={{ color: 'var(--txt)' }}>{currentVendor?.company_name}</strong>? This cannot be undone.
+          </p>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+            <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+            <Button variant="danger" onClick={handleDelete}>Delete Vendor</Button>
+          </div>
         </div>
-        <div className="flex items-center gap-3 text-sm text-text-secondary">
-          <Mail size={16} className="text-primary/70 shrink-0" />
-          <span className="truncate">{vendor.email}</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm text-text-secondary">
-          <Phone size={16} className="text-primary/70 shrink-0" />
-          <span>{vendor.phone}</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm text-text-secondary">
-          <Hash size={16} className="text-primary/70 shrink-0" />
-          <span className="font-mono text-text-primary tracking-wide">{vendor.gst_number}</span>
-        </div>
-      </div>
-
-      <div className="mt-5 pt-4 border-t border-border/50 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary border border-primary/20 truncate max-w-[100px]">{vendor.category}</span>
-          <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusBadge(vendor.status)} capitalize`}>{vendor.status}</span>
-        </div>
-        <div className="flex items-center gap-1 text-sm font-medium text-warning bg-warning/10 px-2 py-1 rounded-md border border-warning/20">
-          <Star size={14} className="fill-warning" />
-          <span>{vendor.rating.toFixed(1)}</span>
-        </div>
-      </div>
+      </Modal>
     </div>
   );
 };
 
-const VendorModal = ({ vendor, onClose, onSave }) => {
-  const [formData, setFormData] = useState(vendor || {
-    company_name: '', contact_person: '', email: '', phone: '', gst_number: '', category: '', status: 'active'
-  });
-  const [errors, setErrors] = useState({});
+/* ── VendorCard ──────────────────────────────────────────── */
+const VendorCard = ({ vendor, isAdmin, onEdit, onDelete }) => {
+  const rating = Number(vendor.rating || 0);
 
-  const validate = () => {
-    const newErrors = {};
-    if (!formData.company_name.trim()) newErrors.company_name = 'Required';
-    if (!formData.contact_person.trim()) newErrors.contact_person = 'Required';
-    if (!formData.email.trim()) newErrors.email = 'Required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email format';
-    if (!formData.phone.trim()) newErrors.phone = 'Required';
-    if (!formData.gst_number.trim()) newErrors.gst_number = 'Required';
-    if (!formData.category.trim()) newErrors.category = 'Required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validate()) onSave(formData);
-  };
+  const statusToVariant = { active: 'success', inactive: 'warning', blacklisted: 'danger' };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-      <div className="bg-surface border border-border rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex justify-between items-center p-6 border-b border-border bg-surface/50">
-          <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
-            <Building2 size={20} className="text-primary" />
-            {vendor ? 'Edit Vendor' : 'Add New Vendor'}
-          </h2>
-          <button onClick={onClose} className="text-text-secondary hover:text-text-primary hover:bg-border/50 p-1.5 rounded-md transition-colors"><X size={20} /></button>
-        </div>
-        
-        <div className="p-6 overflow-y-auto">
-          <form id="vendor-form" onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-text-primary mb-1">Company Name</label>
-                <input
-                  type="text"
-                  value={formData.company_name}
-                  onChange={e => setFormData({...formData, company_name: e.target.value})}
-                  className={clsx("w-full", errors.company_name && "error")}
-                  placeholder="e.g. Acme Corp"
-                />
-                {errors.company_name && <p className="text-xs text-danger mt-1">{errors.company_name}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Contact Person</label>
-                <input
-                  type="text"
-                  value={formData.contact_person}
-                  onChange={e => setFormData({...formData, contact_person: e.target.value})}
-                  className={clsx("w-full", errors.contact_person && "error")}
-                  placeholder="John Doe"
-                />
-                {errors.contact_person && <p className="text-xs text-danger mt-1">{errors.contact_person}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Email Address</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
-                  className={clsx("w-full", errors.email && "error")}
-                  placeholder="john@example.com"
-                />
-                {errors.email && <p className="text-xs text-danger mt-1">{errors.email}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Phone Number</label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={e => setFormData({...formData, phone: e.target.value})}
-                  className={clsx("w-full", errors.phone && "error")}
-                  placeholder="+91 98765 43210"
-                />
-                {errors.phone && <p className="text-xs text-danger mt-1">{errors.phone}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Category</label>
-                <input
-                  type="text"
-                  value={formData.category}
-                  onChange={e => setFormData({...formData, category: e.target.value})}
-                  className={clsx("w-full", errors.category && "error")}
-                  placeholder="e.g. IT, Stationery"
-                />
-                {errors.category && <p className="text-xs text-danger mt-1">{errors.category}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">GST Number</label>
-                <input
-                  type="text"
-                  value={formData.gst_number}
-                  onChange={e => setFormData({...formData, gst_number: e.target.value})}
-                  className={clsx("w-full font-mono uppercase", errors.gst_number && "error")}
-                  placeholder="GSTIN..."
-                />
-                {errors.gst_number && <p className="text-xs text-danger mt-1">{errors.gst_number}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Status</label>
-                <select
-                  value={formData.status}
-                  onChange={e => setFormData({...formData, status: e.target.value})}
-                  className="w-full appearance-none"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="blacklisted">Blacklisted</option>
-                </select>
-              </div>
-            </div>
-          </form>
-        </div>
-        
-        <div className="p-6 border-t border-border flex justify-end gap-3 bg-background/50">
-          <button type="button" onClick={onClose} className="btn btn-ghost">Cancel</button>
-          <button type="submit" form="vendor-form" className="btn btn-primary">
-            {vendor ? 'Save Changes' : 'Add Vendor'}
+    <div
+      className="card"
+      style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '0', position: 'relative' }}
+    >
+      {/* Admin actions — always visible */}
+      {isAdmin && (
+        <div style={{ position: 'absolute', top: '14px', right: '14px', display: 'flex', gap: '4px' }}>
+          <button onClick={onEdit}
+            style={{ padding: '5px', borderRadius: '6px', border: '1.5px solid var(--border)', backgroundColor: 'var(--surface-2)', color: 'var(--txt-2)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+          >
+            <Edit2 size={13} />
+          </button>
+          <button onClick={onDelete}
+            style={{ padding: '5px', borderRadius: '6px', border: '1.5px solid var(--border)', backgroundColor: 'var(--surface-2)', color: 'var(--txt-2)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.borderColor = 'var(--danger)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--txt-2)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+          >
+            <Trash2 size={13} />
           </button>
         </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', paddingRight: isAdmin ? '60px' : 0 }}>
+        <div style={{
+          width: '40px', height: '40px', borderRadius: '10px',
+          backgroundColor: 'var(--primary-m)', color: 'var(--primary)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '16px', flexShrink: 0,
+        }}>
+          {vendor.company_name?.charAt(0)?.toUpperCase()}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <h3 style={{
+            fontFamily: 'var(--font-display)', fontWeight: 700,
+            fontSize: '15px', color: 'var(--txt)',
+            margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {vendor.company_name}
+          </h3>
+          <span style={{ fontSize: '12px', color: 'var(--txt-m)' }}>{vendor.category || 'Uncategorized'}</span>
+        </div>
+      </div>
+
+      {/* Details */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+        {[
+          { icon: User,  label: vendor.contact_person },
+          { icon: Mail,  label: vendor.email },
+          { icon: Phone, label: vendor.phone },
+          { icon: Hash,  label: vendor.gst_number, mono: true },
+        ].map(({ icon: Icon, label, mono }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--txt-2)' }}>
+            <Icon size={13} color="var(--primary)" style={{ flexShrink: 0 }} />
+            <span style={{
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              fontFamily: mono ? 'var(--font-mono)' : undefined,
+              color: mono ? 'var(--txt)' : 'var(--txt-2)',
+              fontSize: mono ? '11px' : '12px',
+            }}>
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        paddingTop: '12px', borderTop: '1.5px solid var(--border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <Badge status={vendor.status || 'active'} variant={statusToVariant[vendor.status] || 'success'}>
+          {vendor.status || 'Active'}
+        </Badge>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '4px',
+          fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-mono)',
+          color: 'var(--warning)',
+        }}>
+          <Star size={13} fill="var(--warning)" />
+          {rating.toFixed(1)}
+        </div>
       </div>
     </div>
   );
 };
 
-const DeleteConfirmModal = ({ vendor, onClose, onConfirm }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-    <div className="bg-surface border border-border rounded-xl shadow-2xl w-full max-w-sm p-6 text-center">
-      <div className="w-14 h-14 rounded-full bg-danger/10 text-danger flex items-center justify-center mx-auto mb-5 border border-danger/20">
-        <AlertTriangle size={28} />
-      </div>
-      <h3 className="text-xl font-bold text-text-primary mb-2">Delete Vendor</h3>
-      <p className="text-sm text-text-secondary mb-8">
-        Are you sure you want to delete <span className="text-text-primary font-bold">{vendor.company_name}</span>? This action cannot be undone.
-      </p>
-      <div className="flex gap-3 justify-center">
-        <button onClick={onClose} className="btn btn-ghost flex-1">Cancel</button>
-        <button onClick={onConfirm} className="btn btn-danger flex-1">Yes, Delete</button>
-      </div>
+/* ── VendorModal ──────────────────────────────────────────── */
+const VendorModal = ({ open, vendor, onClose, onSave }) => {
+  const [formData, setFormData] = useState(emptyForm);
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (vendor) {
+      setFormData({
+        company_name:   vendor.company_name   || '',
+        contact_person: vendor.contact_person || '',
+        email:          vendor.email          || '',
+        phone:          vendor.phone          || '',
+        gst_number:     vendor.gst_number     || '',
+        category:       vendor.category       || '',
+        status:         vendor.status         || 'active',
+      });
+    } else {
+      setFormData(emptyForm);
+    }
+    setErrors({});
+  }, [vendor, open]);
+
+  const validate = () => {
+    const e = {};
+    if (!formData.company_name.trim())   e.company_name   = 'Required';
+    if (!formData.contact_person.trim()) e.contact_person = 'Required';
+    if (!formData.email.trim())          e.email          = 'Required';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) e.email = 'Invalid email';
+    if (!formData.phone.trim())          e.phone          = 'Required';
+    if (!formData.gst_number.trim())     e.gst_number     = 'Required';
+    if (!formData.category.trim())       e.category       = 'Required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
+    await onSave(formData);
+    setLoading(false);
+  };
+
+  const set = (key) => (e) => setFormData(f => ({ ...f, [key]: e.target.value }));
+
+  const Field = ({ label, name, type = 'text', placeholder, mono }) => (
+    <div>
+      <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--txt)', marginBottom: '4px' }}>{label}</label>
+      <input
+        type={type}
+        value={formData[name]}
+        onChange={set(name)}
+        placeholder={placeholder}
+        className={errors[name] ? 'error' : ''}
+        style={{ fontFamily: mono ? 'var(--font-mono)' : undefined, textTransform: mono ? 'uppercase' : undefined }}
+      />
+      {errors[name] && <p style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '3px' }}>{errors[name]}</p>}
     </div>
-  </div>
-);
+  );
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={vendor ? 'Edit Vendor' : 'Add New Vendor'}
+      subtitle={vendor ? `Editing ${vendor.company_name}` : 'Fill in the details to register a new supplier.'}
+      maxWidth="580px"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button loading={loading} onClick={handleSubmit}>
+            {vendor ? 'Save Changes' : 'Add Vendor'}
+          </Button>
+        </>
+      }
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <Field label="Company Name" name="company_name" placeholder="Acme Corp" />
+        </div>
+        <Field label="Contact Person" name="contact_person" placeholder="John Doe" />
+        <Field label="Email Address"  name="email"          type="email" placeholder="john@example.com" />
+        <Field label="Phone Number"   name="phone"          placeholder="+91 98765 43210" />
+        <Field label="Category"       name="category"       placeholder="IT, Stationery…" />
+        <Field label="GST Number"     name="gst_number"     placeholder="GSTIN…" mono />
+        <div>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--txt)', marginBottom: '4px' }}>Status</label>
+          <select value={formData.status} onChange={set('status')}>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="blacklisted">Blacklisted</option>
+          </select>
+        </div>
+      </div>
+    </Modal>
+  );
+};
 
 export default Vendors;

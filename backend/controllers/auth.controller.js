@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { User, Vendor } = require('../models');
+const logActivity = require('../utils/activityLogger');
 
 exports.register = async (req, res) => {
   try {
@@ -113,6 +114,66 @@ exports.forgotPassword = async (req, res) => {
     console.log(`[MOCK EMAIL] Password reset link sent to ${email}`);
 
     res.json({ success: true, message: 'If that email is registered, a password reset link has been sent.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) return res.status(400).json({ success: false, message: 'Email already exists' });
+    }
+
+    await user.update({ name, email });
+
+    await logActivity({
+      user_id: user.id,
+      action: 'Updated profile details',
+      entity_type: 'user',
+      entity_id: user.id
+    });
+
+    res.json({
+      success: true,
+      data: { id: user.id, name: user.name, email: user.email, role: user.role },
+      message: 'Profile updated successfully'
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.updatePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!validPassword) {
+      return res.status(400).json({ success: false, message: 'Invalid current password' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(newPassword, salt);
+    await user.update({ password_hash });
+
+    await logActivity({
+      user_id: user.id,
+      action: 'Changed password',
+      entity_type: 'user',
+      entity_id: user.id
+    });
+
+    res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });

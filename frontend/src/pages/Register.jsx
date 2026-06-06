@@ -1,265 +1,264 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../lib/axios';
-import clsx from 'clsx';
-import { User, Mail, Lock, ShieldCheck, Phone, Globe, FileText } from 'lucide-react';
+import { User, Mail, Lock, ShieldCheck, Phone, Globe, FileText, Eye, EyeOff, Sparkles } from 'lucide-react';
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    country: '',
-    password: '',
-    role: 'vendor',
-    description: ''
+    firstName: '', lastName: '', email: '', phone: '',
+    country: '', password: '', role: 'vendor', description: ''
   });
+  const [showPw, setShowPw] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState('');
-  
   const navigate = useNavigate();
 
   const validate = () => {
-    const newErrors = {};
-    if (!formData.firstName) newErrors.firstName = 'First name is required';
-    if (!formData.lastName) newErrors.lastName = 'Last name is required';
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email address is invalid';
-    }
-    if (!formData.phone) newErrors.phone = 'Phone number is required';
-    if (!formData.country) newErrors.country = 'Country is required';
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    if (!formData.role) newErrors.role = 'Role is required';
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const e = {};
+    if (!formData.firstName) e.firstName = 'Required';
+    if (!formData.lastName)  e.lastName  = 'Required';
+    if (!formData.email) e.email = 'Required';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) e.email = 'Invalid email';
+    if (!formData.phone)   e.phone   = 'Required';
+    if (!formData.country) e.country = 'Required';
+    if (!formData.password) e.password = 'Required';
+    else if (formData.password.length < 6) e.password = 'At least 6 characters';
+    if (!formData.role) e.role = 'Required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (ev) => {
+    ev.preventDefault();
     setServerError('');
     if (!validate()) return;
-
     setLoading(true);
     try {
       const payload = {
         name: `${formData.firstName} ${formData.lastName}`.trim(),
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-        phone: formData.phone,
-        country: formData.country,
-        description: formData.description
+        email: formData.email, password: formData.password,
+        role: formData.role, phone: formData.phone,
+        country: formData.country, description: formData.description,
       };
-      const response = await api.post('/auth/register', payload);
-      if (response.success || response.data) {
-        navigate('/login');
-      } else {
-        setServerError(response.message || 'Registration failed');
-      }
+      const res = await api.post('/auth/register', payload);
+      if (res.success || res.data) navigate('/login');
+      else setServerError(res.message || 'Registration failed');
     } catch (err) {
-      setServerError(err.response?.data?.message || err.message || 'An error occurred during registration');
+      setServerError(err.response?.data?.message || err.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const Field = ({ label, name, type = 'text', icon: Icon, placeholder, halfWidth, isSelect, options, isTextarea, errKey }) => (
+    <div style={{ gridColumn: halfWidth ? 'auto' : '1 / -1' }}>
+      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '5px' }}>
+        {label}
+      </label>
+      <div className="input-icon-wrap">
+        <Icon size={15} className="input-icon" />
+        {isSelect ? (
+          <select
+            name={name}
+            value={formData[name]}
+            onChange={handleChange}
+            className={errors[errKey || name] ? 'error' : ''}
+            style={{ paddingLeft: '36px' }}
+          >
+            {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        ) : isTextarea ? (
+          <textarea
+            name={name}
+            value={formData[name]}
+            onChange={handleChange}
+            placeholder={placeholder}
+            style={{ paddingLeft: '36px', minHeight: '80px', resize: 'vertical' }}
+          />
+        ) : (
+          <input
+            name={name}
+            type={type}
+            value={formData[name]}
+            onChange={handleChange}
+            placeholder={placeholder}
+            className={errors[errKey || name] ? 'error' : ''}
+            style={{ paddingLeft: '36px' }}
+          />
+        )}
+      </div>
+      {errors[errKey || name] && (
+        <p style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '3px' }}>
+          {errors[errKey || name]}
+        </p>
+      )}
+    </div>
+  );
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 py-12">
-      <div className="w-full max-w-2xl bg-surface border border-border rounded-xl shadow-2xl p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary font-sans mb-2">VendorBridge</h1>
-          <p className="text-text-secondary">Create a new account</p>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 16px' }}>
+      <div style={{ width: '100%', maxWidth: '680px' }}>
+        {/* Brand */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Sparkles size={16} color="white" />
+            </div>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '20px', color: 'var(--primary)' }}>
+              VendorBridge
+            </span>
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 700, color: 'var(--txt)', letterSpacing: '-0.02em', margin: '0 0 4px' }}>
+            Create your account
+          </h1>
+          <p style={{ color: 'var(--txt-2)', fontSize: '14px' }}>Join thousands of procurement teams worldwide</p>
         </div>
 
-        {serverError && (
-          <div className="mb-6 p-3 bg-danger/10 border border-danger text-danger rounded-md text-sm">
-            {serverError}
-          </div>
-        )}
+        {/* Card */}
+        <div className="card" style={{ padding: '32px' }}>
+          {serverError && (
+            <div style={{
+              marginBottom: '20px', padding: '12px 16px',
+              borderRadius: '10px', border: '1.5px solid rgba(192,57,43,0.25)',
+              backgroundColor: 'rgba(192,57,43,0.08)', color: 'var(--danger)', fontSize: '14px',
+            }}>
+              {serverError}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">First Name</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-secondary">
-                  <User size={18} />
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              {/* First Name */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '5px' }}>First Name</label>
+                <div className="input-icon-wrap">
+                  <User size={15} className="input-icon" />
+                  <input name="firstName" type="text" value={formData.firstName} onChange={handleChange} placeholder="John" className={errors.firstName ? 'error' : ''} style={{ paddingLeft: '36px' }} />
                 </div>
-                <input
-                  name="firstName"
-                  type="text"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  className={clsx("w-full !pl-10", errors.firstName && "error")}
-                  placeholder="John"
-                />
+                {errors.firstName && <p style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '3px' }}>{errors.firstName}</p>}
               </div>
-              {errors.firstName && <p className="mt-1 text-sm text-danger">{errors.firstName}</p>}
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Last Name</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-secondary">
-                  <User size={18} />
+              {/* Last Name */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '5px' }}>Last Name</label>
+                <div className="input-icon-wrap">
+                  <User size={15} className="input-icon" />
+                  <input name="lastName" type="text" value={formData.lastName} onChange={handleChange} placeholder="Doe" className={errors.lastName ? 'error' : ''} style={{ paddingLeft: '36px' }} />
                 </div>
-                <input
-                  name="lastName"
-                  type="text"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  className={clsx("w-full !pl-10", errors.lastName && "error")}
-                  placeholder="Doe"
-                />
+                {errors.lastName && <p style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '3px' }}>{errors.lastName}</p>}
               </div>
-              {errors.lastName && <p className="mt-1 text-sm text-danger">{errors.lastName}</p>}
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Email Address</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-secondary">
-                  <Mail size={18} />
+              {/* Email */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '5px' }}>Email Address</label>
+                <div className="input-icon-wrap">
+                  <Mail size={15} className="input-icon" />
+                  <input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="you@company.com" className={errors.email ? 'error' : ''} style={{ paddingLeft: '36px' }} />
                 </div>
-                <input
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className={clsx("w-full !pl-10", errors.email && "error")}
-                  placeholder="you@example.com"
-                />
+                {errors.email && <p style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '3px' }}>{errors.email}</p>}
               </div>
-              {errors.email && <p className="mt-1 text-sm text-danger">{errors.email}</p>}
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Phone Number</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-secondary">
-                  <Phone size={18} />
+              {/* Phone */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '5px' }}>Phone Number</label>
+                <div className="input-icon-wrap">
+                  <Phone size={15} className="input-icon" />
+                  <input name="phone" type="tel" value={formData.phone} onChange={handleChange} placeholder="+91 9876543210" className={errors.phone ? 'error' : ''} style={{ paddingLeft: '36px' }} />
                 </div>
-                <input
-                  name="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className={clsx("w-full !pl-10", errors.phone && "error")}
-                  placeholder="+1 234 567 890"
-                />
+                {errors.phone && <p style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '3px' }}>{errors.phone}</p>}
               </div>
-              {errors.phone && <p className="mt-1 text-sm text-danger">{errors.phone}</p>}
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Country</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-secondary">
-                  <Globe size={18} />
+              {/* Country */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '5px' }}>Country</label>
+                <div className="input-icon-wrap">
+                  <Globe size={15} className="input-icon" />
+                  <select name="country" value={formData.country} onChange={handleChange} className={errors.country ? 'error' : ''} style={{ paddingLeft: '36px' }}>
+                    <option value="">Select country…</option>
+                    <option value="IN">India</option>
+                    <option value="US">United States</option>
+                    <option value="UK">United Kingdom</option>
+                    <option value="CA">Canada</option>
+                    <option value="AU">Australia</option>
+                    <option value="OTHER">Other</option>
+                  </select>
                 </div>
-                <select
-                  name="country"
-                  value={formData.country}
-                  onChange={handleChange}
-                  className={clsx("w-full !pl-10 appearance-none bg-surface", errors.country && "error")}
-                >
-                  <option value="">Select a country...</option>
-                  <option value="US">United States</option>
-                  <option value="UK">United Kingdom</option>
-                  <option value="CA">Canada</option>
-                  <option value="IN">India</option>
-                  <option value="AU">Australia</option>
-                  <option value="OTHER">Other</option>
-                </select>
+                {errors.country && <p style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '3px' }}>{errors.country}</p>}
               </div>
-              {errors.country && <p className="mt-1 text-sm text-danger">{errors.country}</p>}
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Role</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-secondary">
-                  <ShieldCheck size={18} />
+              {/* Role */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '5px' }}>Role</label>
+                <div className="input-icon-wrap">
+                  <ShieldCheck size={15} className="input-icon" />
+                  <select name="role" value={formData.role} onChange={handleChange} style={{ paddingLeft: '36px' }}>
+                    <option value="vendor">Vendor</option>
+                    <option value="officer">Officer</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                  </select>
                 </div>
-                <select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleChange}
-                  className={clsx("w-full !pl-10 appearance-none bg-surface", errors.role && "error")}
-                >
-                  <option value="admin">Admin</option>
-                  <option value="officer">Officer</option>
-                  <option value="manager">Manager</option>
-                  <option value="vendor">Vendor</option>
-                </select>
               </div>
-              {errors.role && <p className="mt-1 text-sm text-danger">{errors.role}</p>}
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Password</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-text-secondary">
-                <Lock size={18} />
+              {/* Password — full width */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '5px' }}>Password</label>
+                <div className="input-icon-wrap" style={{ position: 'relative' }}>
+                  <Lock size={15} className="input-icon" />
+                  <input
+                    name="password"
+                    type={showPw ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="Min. 6 characters"
+                    className={errors.password ? 'error' : ''}
+                    style={{ paddingLeft: '36px', paddingRight: '38px' }}
+                  />
+                  <button type="button" onClick={() => setShowPw(s => !s)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--txt-m)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                {errors.password && <p style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '3px' }}>{errors.password}</p>}
               </div>
-              <input
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                className={clsx("w-full !pl-10", errors.password && "error")}
-                placeholder="••••••••"
-              />
+
+              {/* Description — full width */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '5px' }}>
+                  Description / Bio <span style={{ color: 'var(--txt-m)', fontWeight: 400 }}>(optional)</span>
+                </label>
+                <div className="input-icon-wrap">
+                  <FileText size={15} className="input-icon" style={{ top: '14px', transform: 'none' }} />
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Tell us about your company or role…"
+                    style={{ paddingLeft: '36px', minHeight: '72px', resize: 'vertical' }}
+                  />
+                </div>
+              </div>
             </div>
-            {errors.password && <p className="mt-1 text-sm text-danger">{errors.password}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '12px', fontSize: '15px', marginTop: '20px' }}
+            >
+              {loading ? 'Creating Account…' : 'Create Account'}
+            </button>
+          </form>
+
+          <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px', color: 'var(--txt-2)' }}>
+            Already have an account?{' '}
+            <Link to="/login" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
+              Sign in
+            </Link>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1 flex items-center gap-2">
-              <FileText size={16} className="text-text-secondary" />
-              Description / Bio
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              className="w-full h-24 resize-none bg-surface"
-              placeholder="Tell us about your company or role..."
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full btn btn-primary flex justify-center py-2.5 mt-4"
-          >
-            {loading ? 'Creating account...' : 'Create Account'}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center text-sm text-text-secondary">
-          Already have an account?{' '}
-          <Link to="/login" className="text-primary hover:text-blue-400 font-medium transition-colors">
-            Sign in
-          </Link>
         </div>
       </div>
     </div>

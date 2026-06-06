@@ -26,6 +26,8 @@ router.post('/login', [
 ], validate, authController.login);
 
 router.get('/me', verifyToken, authController.getMe);
+router.put('/profile', verifyToken, authController.updateProfile);
+router.put('/password', verifyToken, authController.updatePassword);
 
 router.post('/forgot-password', [
   body('email').isEmail().withMessage('Valid email is required'),

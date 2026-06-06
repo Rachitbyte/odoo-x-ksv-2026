@@ -104,3 +104,69 @@ exports.updateRFQStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+exports.getRFQComparison = async (req, res) => {
+  try {
+    const rfqId = req.params.id;
+    const quotations = await Quotation.findAll({
+      where: { rfq_id: rfqId },
+      include: [
+        { model: Vendor, attributes: ['company_name', 'rating'] }
+      ]
+    });
+
+    const comparison = quotations.map(quote => {
+      const vendor = quote.Vendor || {};
+      const ratingVal = vendor.rating ? Number(vendor.rating).toFixed(1) : '0.0';
+      return {
+        id: quote.id,
+        vendor_name: vendor.company_name || 'Unknown Vendor',
+        vendor_rating: `${ratingVal}/5`,
+        grand_total: quote.total_price ? Number(quote.total_price) : 0,
+        gst_percent: 18,
+        delivery_days: quote.delivery_days || 0,
+        payment_terms: quote.notes || 'Net 30'
+      };
+    });
+
+    res.json({ success: true, data: comparison, message: 'Comparison fetched successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.updateRFQ = async (req, res) => {
+  try {
+    const rfqId = req.params.id;
+    const { title, description, quantity, unit, deadline, vendor_ids } = req.body;
+
+    const rfq = await RFQ.findByPk(rfqId);
+    if (!rfq) return res.status(404).json({ success: false, message: 'RFQ not found' });
+
+    await rfq.update({
+      title,
+      description,
+      quantity,
+      unit,
+      deadline
+    });
+
+    if (vendor_ids) {
+      await rfq.setVendors(vendor_ids);
+    }
+
+    await logActivity({
+      user_id: req.user.id,
+      action: `Updated RFQ details`,
+      entity_type: 'rfq',
+      entity_id: rfq.id,
+      metadata: { title: rfq.title }
+    });
+
+    res.json({ success: true, data: rfq, message: 'RFQ updated successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

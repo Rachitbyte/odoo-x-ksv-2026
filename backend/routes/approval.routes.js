@@ -7,7 +7,7 @@ router.use(verifyToken);
 
 router.get('/', requireRole(['manager']), approvalController.getApprovals);
 router.post('/:quotationId/submit', requireRole(['officer']), approvalController.submitForApproval);
-router.post('/:quotationId/approve', requireRole(['manager']), approvalController.approveQuotation);
-router.post('/:quotationId/reject', requireRole(['manager']), approvalController.rejectQuotation);
+router.post('/:id/approve', requireRole(['manager']), approvalController.approveQuotation);
+router.post('/:id/reject', requireRole(['manager']), approvalController.rejectQuotation);
 
 module.exports = router;

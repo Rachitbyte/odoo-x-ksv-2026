@@ -1,48 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, FileText, Check, AlertCircle, Star, GitCommit } from 'lucide-react';
+import {
+  CheckCircle, XCircle, FileText, Check, AlertCircle,
+  Star, Clock, ChevronRight
+} from 'lucide-react';
 import api from '../lib/axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const mockApprovals = [
-  { 
-    id: 1, 
-    quotation_id: 101, 
-    vendor_name: "Infra Supplies", 
-    vendor_rating: 4.5,
-    rfq_title: "Office Furniture Procurement Q2", 
-    total_price: 185000, 
-    status: "pending", 
-    submitted_at: "2024-12-05", 
-    delivery_days: 10,
-    stage: 2,
-    chain: [
-      { role: "Procurement Officer", status: "approved", date: "2024-12-05" },
-      { role: "Department Manager", status: "pending", date: null },
-      { role: "Finance Director", status: "locked", date: null }
-    ]
-  },
-  { 
-    id: 2, 
-    quotation_id: 105, 
-    vendor_name: "BuildRight Co", 
-    vendor_rating: 4.8,
-    rfq_title: "Warehouse Racking System", 
-    total_price: 15000, 
-    status: "pending", 
-    submitted_at: "2024-12-08", 
-    delivery_days: 21,
-    stage: 1,
-    chain: [
-      { role: "Procurement Officer", status: "pending", date: null },
-      { role: "Department Manager", status: "locked", date: null },
-    ]
-  }
-];
+import PageHeader from '../components/ui/PageHeader';
+import EmptyState from '../components/ui/EmptyState';
+import Button from '../components/ui/Button';
 
 const Approvals = () => {
   const { user } = useAuth();
   const isManager = user?.role === 'manager';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusParam = searchParams.get('status') || 'pending';
 
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,174 +24,262 @@ const Approvals = () => {
 
   useEffect(() => {
     const fetchApprovals = async () => {
+      setLoading(true);
       try {
-        const res = await api.get('/approvals');
+        const res = await api.get(`/approvals?status=${statusParam}`);
         if (res.success && res.data) setApprovals(res.data);
-        else setApprovals(mockApprovals);
-      } catch (err) {
-        setApprovals(mockApprovals);
+        else setApprovals([]);
+      } catch {
+        setApprovals([]);
       } finally {
         setLoading(false);
       }
     };
     fetchApprovals();
-  }, []);
+  }, [statusParam]);
 
   const handleAction = async (id, action) => {
     setActionLoading(id);
     const remark = remarks[id] || '';
     try {
       await api.post(`/approvals/${id}/${action}`, { remarks: remark });
-      setApprovals(approvals.filter(a => a.id !== id));
-      if (action === 'approve') {
-        setTimeout(() => navigate('/po'), 800);
-      }
-    } catch (err) {
-      setApprovals(approvals.filter(a => a.id !== id));
-      if (action === 'approve') {
-        setTimeout(() => navigate('/po'), 800);
-      }
+      setApprovals(prev => prev.filter(a => a.id !== id));
+      if (action === 'approve') setTimeout(() => navigate('/po'), 800);
+    } catch {
+      setApprovals(prev => prev.filter(a => a.id !== id));
+      if (action === 'approve') setTimeout(() => navigate('/po'), 800);
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleRemarkChange = (id, value) => {
-    setRemarks(prev => ({ ...prev, [id]: value }));
-  };
+  const tabs = [
+    { label: 'Pending',  value: 'pending',  icon: Clock },
+    { label: 'Approved', value: 'approved', icon: CheckCircle },
+    { label: 'Rejected', value: 'rejected', icon: XCircle },
+  ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-5xl mx-auto">
-      <div className="flex justify-between items-center border-b border-border pb-4">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Approval Queue</h2>
-          <p className="text-sm text-text-secondary">Review and authorize pending procurement requests.</p>
-        </div>
-        <div className="bg-warning/10 text-warning px-3 py-1.5 rounded-full border border-warning/20 flex items-center gap-2 text-sm font-medium">
-          <AlertCircle size={16} />
-          {approvals.length} Pending
-        </div>
+    <div className="animate-fade-in">
+      <PageHeader
+        title="Approval Queue"
+        subtitle="Review and authorize pending procurement requests."
+      />
+
+      {/* Tabs */}
+      <div style={{
+        display: 'flex', gap: '4px', padding: '4px',
+        backgroundColor: 'var(--surface)',
+        border: '1.5px solid var(--border)',
+        borderRadius: '12px',
+        marginBottom: '20px',
+        width: 'fit-content',
+      }}>
+        {tabs.map(tab => {
+          const active = statusParam === tab.value;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.value}
+              onClick={() => setSearchParams({ status: tab.value })}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '7px 16px', borderRadius: '8px',
+                fontSize: '13px', fontWeight: 500, cursor: 'pointer', border: 'none',
+                backgroundColor: active ? 'var(--primary)' : 'transparent',
+                color: active ? 'white' : 'var(--txt-2)',
+                transition: 'all 0.18s ease',
+              }}
+            >
+              <Icon size={14} />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
+      {/* Count badge */}
+      {!loading && approvals.length > 0 && (
+        <div style={{ marginBottom: '16px', fontSize: '13px', color: 'var(--txt-2)' }}>
+          <span style={{ fontWeight: 600, color: 'var(--txt)' }}>{approvals.length}</span> {statusParam} request{approvals.length !== 1 ? 's' : ''}
+        </div>
+      )}
+
       {loading ? (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {[1, 2].map(i => (
-            <div key={i} className="bg-surface rounded-xl h-64 animate-pulse border border-border"></div>
+            <div key={i} className="card skeleton" style={{ height: '200px', boxShadow: 'none' }} />
           ))}
         </div>
       ) : approvals.length === 0 ? (
-        <div className="bg-surface border border-border rounded-xl p-12 text-center">
-          <CheckCircle size={48} className="mx-auto mb-4 text-success/50" />
-          <h3 className="text-xl font-bold text-text-primary mb-2">All caught up!</h3>
-          <p className="text-text-secondary">There are no pending requests waiting for your approval.</p>
+        <div className="card" style={{ padding: 0 }}>
+          <EmptyState
+            icon={CheckCircle}
+            title={`No ${statusParam} requests`}
+            description={`There are no ${statusParam} approval requests at this time.`}
+          />
         </div>
       ) : (
-        <div className="space-y-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {approvals.map(approval => (
-            <div key={approval.id} className="bg-surface border border-border rounded-xl p-6 shadow-sm flex flex-col lg:flex-row gap-6">
-              
-              {/* Info Section */}
-              <div className="flex-1 space-y-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <FileText size={16} className="text-primary" />
-                    <span className="text-xs font-medium uppercase tracking-wider text-text-secondary">RFQ Reference</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-text-primary">{approval.rfq_title}</h3>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 bg-background/50 p-4 rounded-lg border border-border/50">
-                  <div>
-                    <p className="text-xs text-text-secondary mb-1">Selected Vendor</p>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-text-primary">{approval.vendor_name}</span>
-                      <span className="flex items-center gap-1 text-xs text-warning mt-0.5 font-medium">
-                        <Star size={12} className="fill-warning" /> {approval.vendor_rating}/5 Rating
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-secondary mb-1">Total Quotation Value</p>
-                    <p className="font-mono text-lg font-bold text-success">₹{approval.total_price.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-secondary mb-1">Submitted On</p>
-                    <p className="text-sm text-text-primary">{approval.submitted_at}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-secondary mb-1">Delivery Timeline</p>
-                    <p className="text-sm text-text-primary">{approval.delivery_days} Days</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Chain & Action Section */}
-              <div className="w-full lg:w-80 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-border pt-4 lg:pt-0 lg:pl-6">
-                
-                {/* Approval Chain UI */}
-                <div className="mb-4">
-                  <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3">Approval Chain</h4>
-                  <div className="space-y-3">
-                    {approval.chain.map((stage, idx) => (
-                      <div key={idx} className="flex gap-3 relative">
-                        {idx !== approval.chain.length - 1 && (
-                          <div className="absolute left-[7px] top-4 bottom-[-12px] w-[2px] bg-border"></div>
-                        )}
-                        <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0 border-2 z-10 bg-surface
-                          ${stage.status === 'approved' ? 'border-success' : stage.status === 'pending' ? 'border-warning' : 'border-border'}`}
-                        >
-                          {stage.status === 'approved' && <div className="w-2 h-2 rounded-full bg-success"></div>}
-                          {stage.status === 'pending' && <div className="w-2 h-2 rounded-full bg-warning animate-pulse"></div>}
-                        </div>
-                        <div>
-                          <p className={`text-sm font-medium ${stage.status === 'locked' ? 'text-text-secondary' : 'text-text-primary'}`}>
-                            {stage.role}
-                          </p>
-                          {stage.date && <p className="text-xs text-text-secondary font-mono">{stage.date}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                {isManager && (
-                  <div>
-                    <label className="block text-xs font-medium text-text-secondary mb-1">Your Remarks (Optional)</label>
-                    <textarea
-                      value={remarks[approval.id] || ''}
-                      onChange={(e) => handleRemarkChange(approval.id, e.target.value)}
-                      placeholder="Add approval or rejection notes..."
-                      className="w-full h-16 text-sm resize-none mb-3"
-                    />
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleAction(approval.id, 'reject')}
-                        disabled={actionLoading === approval.id}
-                        className="flex-1 btn btn-ghost text-danger hover:bg-danger/10 hover:text-danger hover:border-danger/30 flex justify-center items-center gap-2"
-                      >
-                        <XCircle size={16} /> Reject
-                      </button>
-                      <button
-                        onClick={() => handleAction(approval.id, 'approve')}
-                        disabled={actionLoading === approval.id}
-                        className="flex-1 btn btn-primary bg-success hover:bg-green-600 border-none flex justify-center items-center gap-2"
-                      >
-                        {actionLoading === approval.id ? 'Processing...' : (
-                          <><Check size={16} /> Approve</>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-            </div>
+            <ApprovalCard
+              key={approval.id}
+              approval={approval}
+              isManager={isManager}
+              statusParam={statusParam}
+              actionLoading={actionLoading}
+              remarks={remarks}
+              onRemarkChange={(id, val) => setRemarks(p => ({ ...p, [id]: val }))}
+              onAction={handleAction}
+            />
           ))}
         </div>
       )}
     </div>
   );
 };
+
+const ApprovalCard = ({ approval, isManager, statusParam, actionLoading, remarks, onRemarkChange, onAction }) => (
+  <div className="card animate-fade-in" style={{ padding: 0, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
+      {/* Main info */}
+      <div style={{ flex: '1 1 300px', padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
+          <div style={{
+            width: '36px', height: '36px', borderRadius: '10px',
+            backgroundColor: 'var(--primary-m)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <FileText size={16} color="var(--primary)" />
+          </div>
+          <div>
+            <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--txt-m)' }}>
+              RFQ Reference
+            </span>
+            <h3 style={{
+              fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 700,
+              color: 'var(--txt)', margin: '2px 0 0', letterSpacing: '-0.01em',
+            }}>
+              {approval.rfq_title}
+            </h3>
+          </div>
+        </div>
+
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          gap: '12px', padding: '16px',
+          backgroundColor: 'var(--surface-2)',
+          borderRadius: '10px', border: '1.5px solid var(--border)',
+        }}>
+          <InfoItem label="Selected Vendor">
+            <div style={{ fontWeight: 600, color: 'var(--txt)', fontSize: '14px' }}>{approval.vendor_name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+              {[1,2,3,4,5].map(s => (
+                <Star key={s} size={10} fill={s <= Math.round(approval.vendor_rating || 0) ? 'var(--warning)' : 'transparent'} color="var(--warning)" />
+              ))}
+              <span style={{ fontSize: '11px', color: 'var(--txt-m)', marginLeft: '2px' }}>{approval.vendor_rating}/5</span>
+            </div>
+          </InfoItem>
+          <InfoItem label="Total Value">
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '17px', fontWeight: 700, color: 'var(--primary)' }}>
+              ₹{Number(approval.total_price || 0).toLocaleString()}
+            </span>
+          </InfoItem>
+          <InfoItem label="Submitted On">
+            <span style={{ fontSize: '13px', color: 'var(--txt)' }}>{approval.submitted_at}</span>
+          </InfoItem>
+          <InfoItem label="Delivery">
+            <span style={{ fontSize: '13px', color: 'var(--txt)' }}>{approval.delivery_days} days</span>
+          </InfoItem>
+        </div>
+      </div>
+
+      {/* Chain & actions */}
+      <div style={{
+        flex: '0 0 280px', padding: '24px',
+        borderLeft: '1.5px solid var(--border)',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        backgroundColor: 'var(--surface-2)',
+      }}>
+        <div>
+          <h4 style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--txt-m)', marginBottom: '12px' }}>
+            Approval Chain
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {(approval.chain || []).map((stage, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
+                {idx < (approval.chain?.length - 1) && (
+                  <div style={{ position: 'absolute', left: '7px', top: '20px', width: '2px', height: '18px', backgroundColor: 'var(--border)' }} />
+                )}
+                <div style={{
+                  width: '16px', height: '16px', borderRadius: '999px',
+                  border: `2px solid ${stage.status === 'approved' ? 'var(--primary)' : stage.status === 'pending' ? 'var(--warning)' : 'var(--border)'}`,
+                  backgroundColor: stage.status === 'approved' ? 'var(--primary)' : 'var(--surface)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, zIndex: 1,
+                }}>
+                  {stage.status === 'approved' && <Check size={8} color="white" strokeWidth={3} />}
+                  {stage.status === 'pending' && <div style={{ width: '6px', height: '6px', borderRadius: '999px', backgroundColor: 'var(--warning)' }} />}
+                </div>
+                <div>
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: stage.status === 'locked' ? 'var(--txt-m)' : 'var(--txt)', margin: 0 }}>
+                    {stage.role}
+                  </p>
+                  {stage.date && <p style={{ fontSize: '11px', color: 'var(--txt-m)', fontFamily: 'var(--font-mono)', margin: 0 }}>{stage.date}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {isManager && statusParam === 'pending' && (
+          <div style={{ marginTop: '16px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--txt-2)', display: 'block', marginBottom: '6px' }}>
+              Remarks (Optional)
+            </label>
+            <textarea
+              value={remarks[approval.id] || ''}
+              onChange={e => onRemarkChange(approval.id, e.target.value)}
+              placeholder="Add notes…"
+              style={{ width: '100%', minHeight: '60px', resize: 'none', fontSize: '13px', marginBottom: '10px' }}
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => onAction(approval.id, 'reject')}
+                disabled={actionLoading === approval.id}
+                className="btn btn-ghost"
+                style={{ flex: 1, color: 'var(--danger)', borderColor: 'rgba(192,57,43,0.3)', fontSize: '13px' }}
+              >
+                <XCircle size={14} /> Reject
+              </button>
+              <button
+                onClick={() => onAction(approval.id, 'approve')}
+                disabled={actionLoading === approval.id}
+                className="btn btn-primary"
+                style={{ flex: 1, fontSize: '13px' }}
+              >
+                {actionLoading === approval.id ? '…' : <><Check size={14} /> Approve</>}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {statusParam !== 'pending' && approval.remarks && (
+          <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'var(--surface)', borderRadius: '8px', border: '1.5px solid var(--border)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--txt-m)', marginBottom: '4px' }}>Remarks</p>
+            <p style={{ fontSize: '13px', color: 'var(--txt)', fontStyle: 'italic' }}>{approval.remarks}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
+const InfoItem = ({ label, children }) => (
+  <div>
+    <p style={{ fontSize: '11px', color: 'var(--txt-m)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{label}</p>
+    {children}
+  </div>
+);
 
 export default Approvals;

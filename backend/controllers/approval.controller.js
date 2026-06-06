@@ -1,17 +1,47 @@
 const { Approval, Quotation, RFQ, PurchaseOrder, Vendor } = require('../models');
 const logActivity = require('../utils/activityLogger');
+const { Op } = require('sequelize');
 
 exports.getApprovals = async (req, res) => {
   try {
+    const status = req.query.status || 'pending';
     const approvals = await Approval.findAll({
+      where: { status },
       include: [
-        { 
-          model: Quotation, 
-          include: [{ model: RFQ }, { model: Vendor, attributes: ['company_name'] }] 
+        {
+          model: Quotation,
+          include: [
+            { model: RFQ },
+            { model: Vendor, attributes: ['company_name', 'rating'] }
+          ]
         }
       ]
     });
-    res.json({ success: true, data: approvals, message: 'Approvals fetched successfully' });
+
+    const formattedApprovals = approvals.map(approval => {
+      const quotation = approval.Quotation || {};
+      const rfq = quotation.RFQ || {};
+      const vendor = quotation.Vendor || {};
+
+      return {
+        id: approval.id,
+        quotation_id: quotation.id,
+        rfq_title: rfq.title || 'Untitled RFQ',
+        vendor_name: vendor.company_name || 'Unknown Vendor',
+        vendor_rating: vendor.rating ? Number(vendor.rating) : 0,
+        total_price: quotation.total_price ? Number(quotation.total_price) : 0,
+        submitted_at: quotation.submitted_at ? new Date(quotation.submitted_at).toISOString().split('T')[0] : '',
+        delivery_days: quotation.delivery_days || 0,
+        status: approval.status,
+        remarks: approval.remarks || '',
+        chain: [
+          { role: 'Procurement Officer', status: 'approved', date: approval.created_at ? new Date(approval.created_at).toISOString().split('T')[0] : '' },
+          { role: 'Department Manager', status: approval.status, date: approval.reviewed_at ? new Date(approval.reviewed_at).toISOString().split('T')[0] : null }
+        ]
+      };
+    });
+
+    res.json({ success: true, data: formattedApprovals, message: 'Approvals fetched successfully' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -19,42 +49,45 @@ exports.getApprovals = async (req, res) => {
 };
 
 exports.submitForApproval = async (req, res) => {
-    try {
-        const quotationId = req.params.quotationId;
-        const quotation = await Quotation.findByPk(quotationId);
-        
-        if (!quotation) return res.status(404).json({ success: false, message: 'Quotation not found' });
+  try {
+    const quotationId = req.params.quotationId;
+    const quotation = await Quotation.findByPk(quotationId);
+    
+    if (!quotation) return res.status(404).json({ success: false, message: 'Quotation not found' });
 
-        await quotation.update({ status: 'under_comparison' });
+    await quotation.update({ status: 'under_comparison' });
 
-        const approval = await Approval.create({
-            quotation_id: quotationId,
-            status: 'pending'
-        });
+    const approval = await Approval.create({
+      quotation_id: quotationId,
+      status: 'pending'
+    });
 
-        await logActivity({
-            user_id: req.user.id,
-            action: 'Submitted quotation for approval',
-            entity_type: 'approval',
-            entity_id: approval.id
-        });
+    await logActivity({
+      user_id: req.user.id,
+      action: 'Submitted quotation for approval',
+      entity_type: 'approval',
+      entity_id: approval.id
+    });
 
-        res.status(201).json({ success: true, data: approval, message: 'Submitted for approval' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
+    res.status(201).json({ success: true, data: approval, message: 'Submitted for approval' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
 
 exports.approveQuotation = async (req, res) => {
   try {
-    const quotationId = req.params.quotationId;
+    const approvalId = req.params.id;
     const { remarks } = req.body;
 
-    const approval = await Approval.findOne({ where: { quotation_id: quotationId } });
+    const approval = await Approval.findByPk(approvalId, {
+      include: [{ model: Quotation, include: [RFQ] }]
+    });
     if (!approval) return res.status(404).json({ success: false, message: 'Approval record not found' });
 
-    const quotation = await Quotation.findByPk(quotationId, { include: [RFQ] });
+    const quotation = approval.Quotation;
+    if (!quotation) return res.status(404).json({ success: false, message: 'Quotation associated with approval not found' });
 
     await approval.update({
       status: 'approved',
@@ -64,17 +97,19 @@ exports.approveQuotation = async (req, res) => {
     });
 
     await quotation.update({ status: 'selected' });
-    await quotation.RFQ.update({ status: 'approved' });
+    if (quotation.RFQ) {
+      await quotation.RFQ.update({ status: 'approved' });
+    }
 
     // Reject all other quotations for this RFQ
     await Quotation.update(
-        { status: 'rejected' },
-        { where: { rfq_id: quotation.rfq_id, id: { [require('sequelize').Op.ne]: quotationId } } }
+      { status: 'rejected' },
+      { where: { rfq_id: quotation.rfq_id, id: { [Op.ne]: quotation.id } } }
     );
 
     // Auto-create PO
     const po = await PurchaseOrder.create({
-      quotation_id: quotationId,
+      quotation_id: quotation.id,
       rfq_id: quotation.rfq_id,
       vendor_id: quotation.vendor_id,
       subtotal: quotation.total_price,
@@ -101,13 +136,16 @@ exports.approveQuotation = async (req, res) => {
 
 exports.rejectQuotation = async (req, res) => {
   try {
-    const quotationId = req.params.quotationId;
+    const approvalId = req.params.id;
     const { remarks } = req.body;
 
-    const approval = await Approval.findOne({ where: { quotation_id: quotationId } });
+    const approval = await Approval.findByPk(approvalId, {
+      include: [{ model: Quotation, include: [RFQ] }]
+    });
     if (!approval) return res.status(404).json({ success: false, message: 'Approval record not found' });
 
-    const quotation = await Quotation.findByPk(quotationId, { include: [RFQ] });
+    const quotation = approval.Quotation;
+    if (!quotation) return res.status(404).json({ success: false, message: 'Quotation associated with approval not found' });
 
     await approval.update({
       status: 'rejected',
@@ -118,8 +156,9 @@ exports.rejectQuotation = async (req, res) => {
 
     await quotation.update({ status: 'rejected' });
     
-    // Check if any other approvals are pending, if not, revert RFQ
-    await quotation.RFQ.update({ status: 'open' });
+    if (quotation.RFQ) {
+      await quotation.RFQ.update({ status: 'open' });
+    }
 
     await logActivity({
       user_id: req.user.id,

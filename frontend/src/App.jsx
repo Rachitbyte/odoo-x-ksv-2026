@@ -23,6 +23,8 @@ import InvoiceDetail from './pages/invoices/InvoiceDetail';
 import ActivityLogs from './pages/ActivityLogs';
 import Reports from './pages/Reports';
 import UsersList from './pages/UsersList';
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -41,6 +43,9 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/users" element={<UsersList />} />
               <Route path="/vendors" element={<Vendors />} />
+              <Route path="/vendors/new" element={<Vendors openAddModal={true} />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/rfqs" element={<RFQList />} />
               <Route path="/rfq/new" element={<RFQCreate />} />
               <Route path="/rfq/:id" element={<RFQDetail />} />
