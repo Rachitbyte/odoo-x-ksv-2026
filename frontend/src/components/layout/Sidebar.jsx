@@ -10,7 +10,8 @@ import {
   Activity, 
   BarChart2,
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  MessageSquare
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -18,6 +19,7 @@ const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
   { name: 'Vendors', path: '/vendors', icon: Users },
   { name: 'RFQs', path: '/rfqs', icon: FileText },
+  { name: 'Quotations', path: '/quotations', icon: MessageSquare },
   { name: 'Approvals', path: '/approvals', icon: CheckSquare },
   { name: 'Purchase Orders', path: '/po', icon: ShoppingCart },
   { name: 'Invoices', path: '/invoices', icon: Receipt },

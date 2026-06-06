@@ -15,7 +15,9 @@ const TopBar = () => {
     <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-6 sticky top-0 z-10">
       <div className="flex items-center">
         <h2 className="text-lg font-medium text-text-primary">
-          {pathName || 'Overview'}
+          {location.pathname === '/' || location.pathname === '/dashboard' 
+            ? `Welcome back, ${user?.name || 'Admin'} 👋` 
+            : pathName}
         </h2>
       </div>
       <div className="flex items-center gap-4">

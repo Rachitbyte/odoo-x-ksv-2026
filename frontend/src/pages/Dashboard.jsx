@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, FileText, ShoppingCart, Receipt, ArrowUpRight, ArrowDownRight, Activity as ActivityIcon } from 'lucide-react';
+import { Clock, FileText, ShoppingCart, Receipt, ArrowUpRight, ArrowDownRight, AlertTriangle, PlusCircle, Users, FilePlus } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Link } from 'react-router-dom';
 import api from '../lib/axios';
 
 const mockData = {
@@ -18,12 +19,14 @@ const mockData = {
     { "month": "Jan", "amount": 45000 },
     { "month": "Feb", "amount": 62000 },
     { "month": "Mar", "amount": 54000 },
-    { "month": "Apr", "amount": 81000 }
+    { "month": "Apr", "amount": 81000 },
+    { "month": "May", "amount": 95000 },
+    { "month": "Jun", "amount": 110000 }
   ],
-  "recentActivity": [
-    { "id": 1, "action": "RFQ Created", "entity_type": "rfq", "created_at": "2024-12-01T10:00:00Z" },
-    { "id": 2, "action": "PO Approved", "entity_type": "po", "created_at": "2024-12-02T14:30:00Z" },
-    { "id": 3, "action": "Invoice Paid", "entity_type": "invoice", "created_at": "2024-12-03T09:15:00Z" }
+  "overdueInvoices": [
+    { "id": 1, "invoice_number": "INV-0014", "vendor": "TechSupplies Ltd", "amount": 15000, "days_overdue": 12 },
+    { "id": 2, "invoice_number": "INV-0021", "vendor": "Office Mart", "amount": 4500, "days_overdue": 5 },
+    { "id": 3, "invoice_number": "INV-0008", "vendor": "BuildRight Co", "amount": 32000, "days_overdue": 18 }
   ]
 };
 
@@ -41,7 +44,6 @@ const Dashboard = () => {
           setData(mockData);
         }
       } catch (error) {
-        // Fallback to mock data silently
         setData(mockData);
       } finally {
         setLoading(false);
@@ -56,6 +58,20 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      
+      {/* Quick Actions */}
+      <div className="flex flex-wrap gap-4 mb-2">
+        <Link to="/rfq/new" className="btn bg-surface border border-border text-text-primary hover:border-primary hover:text-primary transition-colors flex items-center gap-2 rounded-lg px-4 py-2 shadow-sm">
+          <FilePlus size={18} /> New RFQ
+        </Link>
+        <button className="btn bg-surface border border-border text-text-primary hover:border-primary hover:text-primary transition-colors flex items-center gap-2 rounded-lg px-4 py-2 shadow-sm">
+          <Users size={18} /> Add Vendor
+        </button>
+        <button className="btn bg-surface border border-border text-text-primary hover:border-primary hover:text-primary transition-colors flex items-center gap-2 rounded-lg px-4 py-2 shadow-sm">
+          <Receipt size={18} /> New Invoice
+        </button>
+      </div>
+
       {/* Row 1: Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="Pending Approvals" value={data.pendingApprovals} icon={Clock} trend="up" />
@@ -66,7 +82,7 @@ const Dashboard = () => {
 
       {/* Row 2: RFQs Table & Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Recent RFQs Table (60% -> col-span-3) */}
+        {/* Recent RFQs Table */}
         <div className="lg:col-span-3 bg-surface border border-border rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-bold text-text-primary mb-4">Recent RFQs</h3>
           <div className="overflow-x-auto">
@@ -97,7 +113,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Monthly Spending Chart (40% -> col-span-2) */}
+        {/* Monthly Spending Chart (6 months) */}
         <div className="lg:col-span-2 bg-surface border border-border rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-bold text-text-primary mb-4">Monthly Spending</h3>
           <div className="h-64 mt-2">
@@ -121,39 +137,39 @@ const Dashboard = () => {
                   formatter={(value) => [`₹${value.toLocaleString()}`, 'Amount']}
                   labelStyle={{ color: '#94A3B8', marginBottom: '4px' }}
                 />
-                <Bar dataKey="amount" fill="#4F8EF7" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                <Bar dataKey="amount" fill="#4F8EF7" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Row 3: Recent Activity Feed */}
+      {/* Row 3: Overdue Invoices (Replaced Recent Activity) */}
       <div className="bg-surface border border-border rounded-xl p-6 shadow-sm">
         <h3 className="text-lg font-bold text-text-primary mb-6 flex items-center gap-2">
-          <ActivityIcon size={20} className="text-primary" />
-          Recent Activity
+          <AlertTriangle size={20} className="text-warning" />
+          Overdue Invoices
         </h3>
-        <div className="space-y-6 pl-2">
-          {data.recentActivity.map((activity, index) => (
-            <div key={activity.id} className="relative flex gap-4 group">
-              {/* Timeline line */}
-              {index !== data.recentActivity.length - 1 && (
-                <div className="absolute left-1.5 top-6 bottom-[-24px] w-[2px] bg-border group-hover:bg-primary/50 transition-colors"></div>
-              )}
-              {/* Timeline dot */}
-              <div className="relative mt-1 w-3 h-3 rounded-full bg-primary ring-4 ring-surface shrink-0 z-10"></div>
-              
-              <div className="-mt-1">
-                <p className="text-sm font-medium text-text-primary">{activity.action}</p>
-                <p className="text-xs text-text-secondary mt-1 font-mono">
-                  {new Date(activity.created_at).toLocaleString(undefined, { 
-                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-                  })}
-                </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {data.overdueInvoices.map((inv) => (
+            <div key={inv.id} className="bg-background border border-danger/20 rounded-lg p-4 hover:border-danger/50 transition-colors">
+              <div className="flex justify-between items-start mb-2">
+                <span className="font-mono text-text-primary font-medium">{inv.invoice_number}</span>
+                <span className="text-xs font-medium text-danger bg-danger/10 px-2 py-0.5 rounded-full border border-danger/20">
+                  {inv.days_overdue} days late
+                </span>
               </div>
+              <p className="text-sm text-text-secondary mb-3">{inv.vendor}</p>
+              <p className="text-lg font-mono font-bold text-text-primary">
+                ₹{inv.amount.toLocaleString()}
+              </p>
             </div>
           ))}
+          {data.overdueInvoices.length === 0 && (
+             <div className="col-span-3 text-center py-8 text-text-secondary">
+               No overdue invoices!
+             </div>
+          )}
         </div>
       </div>
     </div>
@@ -201,6 +217,11 @@ const StatusBadge = ({ status }) => {
 
 const DashboardSkeleton = () => (
   <div className="space-y-6 animate-pulse">
+    <div className="flex gap-4 mb-2">
+      <div className="w-24 h-10 bg-surface border border-border rounded-lg"></div>
+      <div className="w-24 h-10 bg-surface border border-border rounded-lg"></div>
+      <div className="w-24 h-10 bg-surface border border-border rounded-lg"></div>
+    </div>
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {[1, 2, 3, 4].map(i => (
         <div key={i} className="bg-surface border border-border rounded-xl p-6 h-[140px] flex flex-col justify-between">
@@ -234,21 +255,6 @@ const DashboardSkeleton = () => (
            <div className="w-10 h-40 bg-border/50 rounded-t-sm"></div>
            <div className="w-10 h-56 bg-border/50 rounded-t-sm"></div>
         </div>
-      </div>
-    </div>
-    <div className="bg-surface border border-border rounded-xl p-6 h-[280px]">
-      <div className="w-40 h-6 bg-border rounded mb-8"></div>
-      <div className="space-y-8 pl-2">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="flex gap-4 relative">
-            {i !== 3 && <div className="absolute left-[5px] top-4 bottom-[-32px] w-[2px] bg-border"></div>}
-            <div className="w-3 h-3 rounded-full bg-border shrink-0 mt-1"></div>
-            <div className="space-y-2">
-              <div className="w-40 h-4 bg-border rounded"></div>
-              <div className="w-24 h-3 bg-border rounded"></div>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   </div>

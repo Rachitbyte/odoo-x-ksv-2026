@@ -29,6 +29,14 @@ const ActivityLog = sequelize.define('ActivityLog', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: false,
+  hooks: {
+    beforeUpdate: () => {
+      throw new Error('Activity logs are immutable and cannot be modified.');
+    },
+    beforeDestroy: () => {
+      throw new Error('Activity logs are immutable and cannot be deleted.');
+    }
+  }
 });
 
 module.exports = ActivityLog;
