@@ -36,6 +36,44 @@ exports.createInvoice = async (req, res) => {
   }
 };
 
+exports.getAllInvoices = async (req, res) => {
+  try {
+    const whereClause = {};
+    if (req.user.role === 'vendor') {
+      const vendor = await Vendor.findOne({ where: { user_id: req.user.id } });
+      if (vendor) {
+        whereClause.vendor_id = vendor.id;
+      } else {
+        return res.json({ success: true, data: [], message: 'Invoices fetched successfully' });
+      }
+    }
+
+    const invoices = await Invoice.findAll({
+      where: whereClause,
+      include: [
+        { model: PurchaseOrder, attributes: ['po_number'] },
+        { model: Vendor, attributes: ['company_name'] }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    const formattedInvoices = invoices.map(inv => ({
+      id: inv.id,
+      invoice_number: inv.invoice_number,
+      po_number: inv.PurchaseOrder ? inv.PurchaseOrder.po_number : '',
+      vendor_name: inv.Vendor ? inv.Vendor.company_name : '',
+      amount_due: inv.amount_due ? Number(inv.amount_due) : 0,
+      status: inv.status,
+      created_at: inv.created_at ? new Date(inv.created_at).toISOString().split('T')[0] : ''
+    }));
+
+    res.json({ success: true, data: formattedInvoices, message: 'Invoices fetched successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 exports.getInvoiceDetails = async (req, res) => {
   try {
     const invoice = await Invoice.findByPk(req.params.id, {
@@ -45,7 +83,60 @@ exports.getInvoiceDetails = async (req, res) => {
       ]
     });
     if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
-    res.json({ success: true, data: invoice, message: 'Invoice fetched successfully' });
+
+    const po = invoice.PurchaseOrder || {};
+    const rfq = po.RFQ || {};
+    const quotation = po.Quotation || {};
+    const vendor = invoice.Vendor || {};
+
+    const formattedDetail = {
+      id: invoice.id,
+      invoice_number: invoice.invoice_number,
+      status: invoice.status,
+      amount_due: invoice.amount_due ? Number(invoice.amount_due) : 0,
+      created_at: invoice.created_at ? new Date(invoice.created_at).toISOString().split('T')[0] : '',
+      due_date: invoice.created_at ? new Date(new Date(invoice.created_at).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : '',
+      po_number: po.po_number || '',
+      vendor_name: vendor.company_name || '',
+      vendor_address: vendor.address || 'Address on file',
+      vendor_email: vendor.email || '',
+      subtotal: po.subtotal ? Number(po.subtotal) : 0,
+      tax_percent: po.tax_percent ? Number(po.tax_percent) : 0,
+      tax_amount: po.tax_amount ? Number(po.tax_amount) : 0,
+      total_amount: po.total_amount ? Number(po.total_amount) : 0,
+      items: [
+        {
+          description: rfq.title || rfq.description || 'Procured Items',
+          quantity: rfq.quantity || 1,
+          unit: rfq.unit || 'units',
+          unit_price: quotation.unit_price ? Number(quotation.unit_price) : (po.subtotal ? Number(po.subtotal) : 0),
+          total: po.subtotal ? Number(po.subtotal) : 0
+        }
+      ]
+    };
+
+    res.json({ success: true, data: formattedDetail, message: 'Invoice fetched successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.markAsPaid = async (req, res) => {
+  try {
+    const invoice = await Invoice.findByPk(req.params.id);
+    if (!invoice) return res.status(404).json({ success: false, message: 'Invoice not found' });
+
+    await invoice.update({ status: 'paid' });
+
+    await logActivity({
+      user_id: req.user.id,
+      action: 'Marked invoice as paid',
+      entity_type: 'invoice',
+      entity_id: invoice.id
+    });
+
+    res.json({ success: true, data: invoice, message: 'Invoice marked as paid' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });

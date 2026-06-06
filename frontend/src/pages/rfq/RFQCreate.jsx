@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Building2, UploadCloud, Send } from 'lucide-react';
+import { ArrowLeft, Save, UploadCloud, Send, Check } from 'lucide-react';
 import api from '../../lib/axios';
-import clsx from 'clsx';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
 
 const mockVendors = [
-  { id: 1, company_name: "TechSupplies Ltd", category: "IT" },
-  { id: 2, company_name: "Office Mart", category: "Stationery" },
-  { id: 3, company_name: "BuildRight Co", category: "Construction" },
-  { id: 4, company_name: "EventPro Services", category: "Events" }
+  { id: 1, company_name: 'TechSupplies Ltd', category: 'IT' },
+  { id: 2, company_name: 'Office Mart', category: 'Stationery' },
+  { id: 3, company_name: 'BuildRight Co', category: 'Construction' },
+  { id: 4, company_name: 'EventPro Services', category: 'Events' }
 ];
 
 const RFQCreate = () => {
@@ -16,63 +17,43 @@ const RFQCreate = () => {
   const [loading, setLoading] = useState(false);
   const [vendors, setVendors] = useState([]);
   const [formData, setFormData] = useState({
-    title: '',
-    category: '',
-    description: '',
-    quantity: '',
-    unit: '',
-    deadline: '',
-    assigned_vendors: []
+    title: '', category: '', description: '', quantity: '', unit: '', deadline: '', assigned_vendors: []
   });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    const fetchVendors = async () => {
-      try {
-        const res = await api.get('/vendors');
-        if(res.success) setVendors(res.data);
-        else setVendors(mockVendors);
-      } catch (err) {
-        setVendors(mockVendors);
-      }
-    };
-    fetchVendors();
+    api.get('/vendors')
+      .then(res => setVendors(res.success && res.data ? res.data : mockVendors))
+      .catch(() => setVendors(mockVendors));
   }, []);
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.title.trim()) newErrors.title = "Title is required";
-    if (!formData.category) newErrors.category = "Category is required";
-    if (!formData.quantity || isNaN(formData.quantity)) newErrors.quantity = "Valid quantity is required";
-    if (!formData.deadline) newErrors.deadline = "Deadline is required";
-    if (formData.assigned_vendors.length === 0) newErrors.vendors = "Select at least one vendor";
-    
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.category) newErrors.category = 'Category is required';
+    if (!formData.quantity || isNaN(formData.quantity)) newErrors.quantity = 'Valid quantity is required';
+    if (!formData.deadline) newErrors.deadline = 'Deadline is required';
+    if (formData.assigned_vendors.length === 0) newErrors.vendors = 'Select at least one vendor';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleVendorToggle = (vendorId) => {
-    if (formData.assigned_vendors.includes(vendorId)) {
-      setFormData({
-        ...formData,
-        assigned_vendors: formData.assigned_vendors.filter(id => id !== vendorId)
-      });
-    } else {
-      setFormData({
-        ...formData,
-        assigned_vendors: [...formData.assigned_vendors, vendorId]
-      });
-    }
+    setFormData(prev => ({
+      ...prev,
+      assigned_vendors: prev.assigned_vendors.includes(vendorId)
+        ? prev.assigned_vendors.filter(id => id !== vendorId)
+        : [...prev.assigned_vendors, vendorId]
+    }));
   };
 
   const handleSubmit = async (isDraft = false) => {
     if (!isDraft && !validate()) return;
-    
     setLoading(true);
     try {
       await api.post('/rfq', { ...formData, status: isDraft ? 'draft' : 'open' });
       navigate('/rfqs');
-    } catch (err) {
+    } catch {
       setTimeout(() => navigate('/rfqs'), 600);
     } finally {
       setLoading(false);
@@ -80,41 +61,43 @@ const RFQCreate = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl mx-auto">
-      <div className="flex items-center gap-4 border-b border-border pb-4">
-        <button onClick={() => navigate(-1)} className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface rounded-md transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Create New RFQ</h2>
-          <p className="text-sm text-text-secondary">Define requirements and assign to vendors.</p>
-        </div>
-      </div>
+    <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      <PageHeader
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button onClick={() => navigate(-1)} style={{
+              padding: '6px', borderRadius: '8px', border: '1.5px solid var(--border)', backgroundColor: 'var(--surface)', color: 'var(--txt-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <ArrowLeft size={16} />
+            </button>
+            Create New RFQ
+          </div>
+        }
+        subtitle="Define requirements and assign to vendors."
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }} className="lg:grid-cols-3">
         {/* Left Column - Form */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-surface border border-border rounded-xl p-6">
-            <h3 className="text-lg font-medium text-text-primary mb-4">Request Details</h3>
-            <div className="space-y-4">
+        <div className="lg:col-span-2">
+          <div className="card" style={{ padding: '24px' }}>
+            <h3 className="section-label" style={{ marginTop: 0 }}>Request Details</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">RFQ Title</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '8px' }}>RFQ Title</label>
                 <input
-                  type="text"
-                  value={formData.title}
-                  onChange={e => setFormData({...formData, title: e.target.value})}
-                  className={clsx("w-full", errors.title && "error")}
+                  type="text" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })}
+                  style={{ width: '100%', borderColor: errors.title ? 'var(--danger)' : 'var(--border)' }}
                   placeholder="e.g. Q1 Office Laptops"
                 />
-                {errors.title && <p className="text-xs text-danger mt-1">{errors.title}</p>}
+                {errors.title && <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--danger)' }}>{errors.title}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Category</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '8px' }}>Category</label>
                 <select
-                  value={formData.category}
-                  onChange={e => setFormData({...formData, category: e.target.value})}
-                  className={clsx("w-full bg-background", errors.category && "error")}
+                  value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}
+                  style={{ width: '100%', borderColor: errors.category ? 'var(--danger)' : 'var(--border)' }}
                 >
                   <option value="">Select a category...</option>
                   <option value="IT">IT & Hardware</option>
@@ -123,61 +106,56 @@ const RFQCreate = () => {
                   <option value="Services">Services</option>
                   <option value="Other">Other</option>
                 </select>
-                {errors.category && <p className="text-xs text-danger mt-1">{errors.category}</p>}
+                {errors.category && <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--danger)' }}>{errors.category}</p>}
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Description & Specs</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '8px' }}>Description & Specs</label>
                 <textarea
-                  value={formData.description}
-                  onChange={e => setFormData({...formData, description: e.target.value})}
-                  className="w-full h-32 resize-none"
+                  value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  style={{ width: '100%', height: '120px', resize: 'none' }}
                   placeholder="Detailed specifications for the requested items..."
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1">Quantity</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '8px' }}>Quantity</label>
                   <input
-                    type="number"
-                    value={formData.quantity}
-                    onChange={e => setFormData({...formData, quantity: e.target.value})}
-                    className={clsx("w-full", errors.quantity && "error")}
+                    type="number" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })}
+                    style={{ width: '100%', borderColor: errors.quantity ? 'var(--danger)' : 'var(--border)' }}
                     placeholder="e.g. 50"
                   />
-                  {errors.quantity && <p className="text-xs text-danger mt-1">{errors.quantity}</p>}
+                  {errors.quantity && <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--danger)' }}>{errors.quantity}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1">Unit of Measure</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '8px' }}>Unit of Measure</label>
                   <input
-                    type="text"
-                    value={formData.unit}
-                    onChange={e => setFormData({...formData, unit: e.target.value})}
-                    className="w-full"
-                    placeholder="pcs, kg, units..."
+                    type="text" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                    style={{ width: '100%' }} placeholder="pcs, kg, units..."
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Submission Deadline</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '8px' }}>Submission Deadline</label>
                 <input
-                  type="date"
-                  value={formData.deadline}
-                  onChange={e => setFormData({...formData, deadline: e.target.value})}
-                  className={clsx("w-full", errors.deadline && "error")}
+                  type="date" value={formData.deadline} onChange={e => setFormData({ ...formData, deadline: e.target.value })}
+                  style={{ width: '100%', borderColor: errors.deadline ? 'var(--danger)' : 'var(--border)' }}
                 />
-                {errors.deadline && <p className="text-xs text-danger mt-1">{errors.deadline}</p>}
+                {errors.deadline && <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--danger)' }}>{errors.deadline}</p>}
               </div>
 
               {/* Attachments Section */}
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Attachments</label>
-                <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 hover:bg-primary/5 transition-colors cursor-pointer group">
-                  <UploadCloud size={32} className="mx-auto text-text-secondary group-hover:text-primary mb-3 transition-colors" />
-                  <p className="text-sm font-medium text-text-primary">Drag & drop files here</p>
-                  <p className="text-xs text-text-secondary mt-1">or click to browse (PDF, DOCX, JPG)</p>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--txt)', marginBottom: '8px' }}>Attachments</label>
+                <div style={{
+                  border: '2px dashed var(--border)', borderRadius: '12px', padding: '32px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s'
+                }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'var(--primary-m)'; }}
+                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'transparent'; }}>
+                  <UploadCloud size={32} style={{ color: 'var(--txt-m)', margin: '0 auto 12px' }} />
+                  <p style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 600, color: 'var(--txt)' }}>Drag & drop files here</p>
+                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--txt-2)' }}>or click to browse (PDF, DOCX, JPG)</p>
                 </div>
               </div>
             </div>
@@ -185,37 +163,44 @@ const RFQCreate = () => {
         </div>
 
         {/* Right Column - Vendor Selection */}
-        <div className="space-y-6">
-          <div className="bg-surface border border-border rounded-xl p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-text-primary">Assign Vendors</h3>
-              <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full border border-primary/20">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="card" style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--txt)' }}>Assign Vendors</h3>
+              <span style={{ fontSize: '11px', fontWeight: 700, backgroundColor: 'var(--primary-m)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '999px' }}>
                 {formData.assigned_vendors.length} Selected
               </span>
             </div>
-            {errors.vendors && <p className="text-xs text-danger mb-3">{errors.vendors}</p>}
+            {errors.vendors && <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: 'var(--danger)' }}>{errors.vendors}</p>}
             
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '350px', overflowY: 'auto' }}>
               {vendors.map(vendor => {
                 const isSelected = formData.assigned_vendors.includes(vendor.id);
                 return (
-                  <div 
+                  <div
                     key={vendor.id}
                     onClick={() => handleVendorToggle(vendor.id)}
-                    className={clsx(
-                      "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                      isSelected ? "bg-primary/10 border-primary/40 text-primary" : "bg-background border-border hover:border-text-secondary/50 text-text-primary"
-                    )}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px',
+                      border: `1.5px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                      backgroundColor: isSelected ? 'var(--primary-m)' : 'var(--surface)',
+                      cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--txt-m)'; }}
+                    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)'; }}
                   >
-                    <div className={clsx(
-                      "w-4 h-4 rounded border flex items-center justify-center shrink-0",
-                      isSelected ? "bg-primary border-primary" : "border-text-secondary"
-                    )}>
-                      {isSelected && <Save size={10} className="text-white fill-white" />}
+                    <div style={{
+                      width: '18px', height: '18px', borderRadius: '4px', border: `1.5px solid ${isSelected ? 'var(--primary)' : 'var(--txt-m)'}`,
+                      backgroundColor: isSelected ? 'var(--primary)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                    }}>
+                      {isSelected && <Check size={12} color="#fff" strokeWidth={3} />}
                     </div>
-                    <div className="overflow-hidden">
-                      <p className="font-medium text-sm truncate">{vendor.company_name}</p>
-                      <p className={clsx("text-xs truncate", isSelected ? "text-primary/70" : "text-text-secondary")}>
+                    <div style={{ overflow: 'hidden' }}>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: isSelected ? 'var(--primary)' : 'var(--txt)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {vendor.company_name}
+                      </p>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--txt-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {vendor.category}
                       </p>
                     </div>
@@ -225,23 +210,13 @@ const RFQCreate = () => {
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleSubmit(true)}
-              disabled={loading}
-              className="flex-1 btn bg-surface border border-border text-text-primary hover:bg-background transition-colors flex justify-center items-center gap-2"
-            >
-              <Save size={18} />
-              Save Draft
-            </button>
-            <button
-              onClick={() => handleSubmit(false)}
-              disabled={loading}
-              className="flex-1 btn btn-primary flex justify-center items-center gap-2"
-            >
-              <Send size={18} />
-              Save & Send
-            </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Button variant="outline" loading={loading} icon={<Save size={16} />} onClick={() => handleSubmit(true)} style={{ justifyContent: 'center' }}>
+              Draft
+            </Button>
+            <Button variant="primary" loading={loading} icon={<Send size={16} />} onClick={() => handleSubmit(false)} style={{ justifyContent: 'center' }}>
+              Send
+            </Button>
           </div>
         </div>
       </div>

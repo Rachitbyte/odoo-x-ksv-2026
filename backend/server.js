@@ -22,6 +22,7 @@ const poRoutes = require('./routes/po.routes');
 const invoiceRoutes = require('./routes/invoice.routes');
 const activityRoutes = require('./routes/activity.routes');
 const reportRoutes = require('./routes/report.routes');
+const userRoutes = require('./routes/user.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/vendors', vendorRoutes);
@@ -33,6 +34,7 @@ app.use('/api/po', poRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/activity-logs', activityRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/users', userRoutes);
 
 // Test Route
 app.get('/', (req, res) => {

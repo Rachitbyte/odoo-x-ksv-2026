@@ -2,28 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Printer, Download, Mail, CheckCircle, CheckSquare } from 'lucide-react';
 import api from '../../lib/axios';
+import { useAuth } from '../../context/AuthContext';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
 
 const mockInvoiceDetail = {
   id: 1, 
-  invoice_number: "INV-2024-0001",
-  po_number: "PO-2024-0001",
-  vendor_name: "TechSupplies Ltd",
-  vendor_address: "123 Tech Park, Silicon Ave",
-  vendor_email: "billing@techsupplies.com",
+  invoice_number: 'INV-2024-0001',
+  po_number: 'PO-2024-0001',
+  vendor_name: 'TechSupplies Ltd',
+  vendor_address: '123 Tech Park, Silicon Ave',
+  vendor_email: 'billing@techsupplies.com',
   subtotal: 169500,
   tax_percent: 18,
   tax_amount: 30510,
   total_amount: 200010, 
-  status: "generated", 
-  created_at: "2024-12-06",
-  due_date: "2025-01-05",
+  status: 'generated', 
+  created_at: '2024-12-06',
+  due_date: '2025-01-05',
   items: [
-    { description: "Ergonomic chair", quantity: 25, unit: "pcs", unit_price: 3500, total: 87500 },
-    { description: "Standing desk", quantity: 10, unit: "pcs", unit_price: 8200, total: 82000 }
+    { description: 'Ergonomic chair', quantity: 25, unit: 'pcs', unit_price: 3500, total: 87500 },
+    { description: 'Standing desk',   quantity: 10, unit: 'pcs', unit_price: 8200, total: 82000 }
   ]
 };
 
 const InvoiceDetail = () => {
+  const { user } = useAuth();
+  const isOfficer = user?.role === 'officer';
+
   const { id } = useParams();
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState(null);
@@ -33,20 +39,17 @@ const InvoiceDetail = () => {
   const [isPaid, setIsPaid] = useState(false);
 
   useEffect(() => {
-    const fetchInvoice = async () => {
-      try {
-        const res = await api.get(`/invoices/${id}`);
-        const data = res.success ? res.data : mockInvoiceDetail;
+    api.get(`/invoices/${id}`)
+      .then(res => {
+        const data = res.success && res.data ? res.data : mockInvoiceDetail;
         setInvoice(data);
         setIsPaid(data.status === 'paid');
-      } catch {
+      })
+      .catch(() => {
         setInvoice(mockInvoiceDetail);
         setIsPaid(mockInvoiceDetail.status === 'paid');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInvoice();
+      })
+      .finally(() => setLoading(false));
   }, [id]);
 
   const handleSendEmail = async () => {
@@ -71,145 +74,154 @@ const InvoiceDetail = () => {
   };
 
   if (loading) {
-    return <div className="animate-pulse h-[600px] bg-surface rounded-xl border border-border max-w-4xl mx-auto"></div>;
+    return (
+      <div className="animate-fade-in" style={{ maxWidth: '850px', margin: '0 auto' }}>
+        <div className="skeleton" style={{ height: '80px', marginBottom: '24px', borderRadius: '12px' }} />
+        <div className="skeleton" style={{ height: '500px', borderRadius: '16px' }} />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center pb-4 border-b border-border flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface rounded-md transition-colors">
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h2 className="text-2xl font-bold text-text-primary font-mono">{invoice.invoice_number}</h2>
-            <p className="text-sm text-text-secondary">Official Tax Invoice</p>
-          </div>
-        </div>
-        
-        <div className="flex gap-3 flex-wrap">
-          <button onClick={() => window.print()} className="btn btn-ghost flex items-center gap-2 print:hidden">
-            <Printer size={16} /> Print
-          </button>
-          <button onClick={() => window.print()} className="btn btn-ghost flex items-center gap-2 print:hidden">
-            <Download size={16} /> PDF
-          </button>
-          <button 
-            onClick={handleSendEmail} 
-            disabled={emailing || emailSent}
-            className={`btn border-none flex items-center gap-2 print:hidden ${emailSent ? 'bg-success text-white' : 'bg-primary text-white hover:bg-blue-600'}`}
-          >
-            {emailing ? 'Sending...' : emailSent ? <><CheckCircle size={16} /> Sent</> : <><Mail size={16} /> Email Vendor</>}
-          </button>
-          
-          {!isPaid && (
-            <button 
-              onClick={handleMarkAsPaid} 
-              className="btn bg-success text-white hover:bg-green-600 border-none flex items-center gap-2 print:hidden"
-            >
-              <CheckSquare size={16} /> Mark as Paid
+    <div className="animate-fade-in" style={{ maxWidth: '850px', margin: '0 auto' }}>
+      <PageHeader
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button onClick={() => navigate(-1)} style={{
+              padding: '6px', borderRadius: '8px', border: '1.5px solid var(--border)', backgroundColor: 'var(--surface)', color: 'var(--txt-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <ArrowLeft size={16} />
             </button>
-          )}
-        </div>
-      </div>
+            <span style={{ fontFamily: 'var(--font-mono)' }}>{invoice.invoice_number}</span>
+          </div>
+        }
+        subtitle="Official Tax Invoice"
+        actions={
+          <div className="print:hidden" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            <Button variant="ghost" icon={<Printer size={16} />} onClick={() => window.print()}>Print</Button>
+            <Button variant="ghost" icon={<Download size={16} />} onClick={() => window.print()}>PDF</Button>
+            {isOfficer && (
+              <Button
+                variant={emailSent ? 'primary' : 'primary'}
+                icon={emailSent ? <CheckCircle size={16} /> : <Mail size={16} />}
+                loading={emailing} disabled={emailSent} onClick={handleSendEmail}
+              >
+                {emailSent ? 'Sent' : 'Email Vendor'}
+              </Button>
+            )}
+            {!isPaid && (
+              <Button
+                style={{ backgroundColor: 'var(--success)', borderColor: 'var(--success)', color: 'white' }}
+                icon={<CheckSquare size={16} />} onClick={handleMarkAsPaid}
+              >
+                Mark as Paid
+              </Button>
+            )}
+          </div>
+        }
+      />
 
-      <div className="bg-white text-black p-8 sm:p-12 rounded-xl shadow-2xl print:shadow-none print:p-0 print:bg-transparent relative overflow-hidden">
+      <div className="card print:shadow-none print:p-0 print:border-none" style={{ padding: '40px', backgroundColor: '#fff', color: '#000', position: 'relative', overflow: 'hidden' }}>
         {isPaid && (
-          <div className="absolute top-1/4 right-1/4 transform rotate-12 opacity-20 pointer-events-none z-10">
-            <div className="border-8 border-green-600 text-green-600 text-6xl font-black p-4 rounded-lg uppercase tracking-widest">
+          <div style={{ position: 'absolute', top: '25%', right: '25%', transform: 'rotate(12deg)', opacity: 0.15, pointerEvents: 'none', zIndex: 10 }}>
+            <div style={{ border: '6px solid var(--success)', color: 'var(--success)', fontSize: '56px', fontWeight: 900, padding: '16px 32px', borderRadius: '16px', letterSpacing: '0.1em' }}>
               PAID IN FULL
             </div>
           </div>
         )}
 
-        <div className="flex justify-between items-start border-b-2 border-gray-200 pb-8 mb-8">
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #E5E7EB', paddingBottom: '32px', marginBottom: '32px' }}>
           <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-1">TAX INVOICE</h1>
-            <p className="text-gray-500 font-mono">{invoice.invoice_number}</p>
+            <h1 style={{ margin: '0 0 4px 0', fontSize: '28px', fontWeight: 900, color: '#111827', letterSpacing: '-0.02em' }}>TAX INVOICE</h1>
+            <p style={{ margin: 0, fontSize: '14px', color: '#6B7280', fontFamily: 'var(--font-mono)' }}>{invoice.invoice_number}</p>
           </div>
-          <div className="text-right">
-            <h2 className="text-xl font-bold text-blue-600 mb-1">VendorBridge Corp</h2>
-            <p className="text-sm text-gray-500">100 Enterprise Way</p>
-            <p className="text-sm text-gray-500">Business City, BC 10001</p>
-            <p className="text-sm text-gray-500 mt-1">Tax ID: 98-7654321</p>
+          <div style={{ textAlign: 'right' }}>
+            <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, color: 'var(--primary)' }}>VendorBridge Corp</h2>
+            <p style={{ margin: 0, fontSize: '13px', color: '#6B7280' }}>100 Enterprise Way</p>
+            <p style={{ margin: 0, fontSize: '13px', color: '#6B7280' }}>Business City, BC 10001</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#6B7280' }}>Tax ID: 98-7654321</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-12 mb-10">
+        {/* Info Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', marginBottom: '40px' }}>
           <div>
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Billed To</h3>
-            <p className="font-bold text-gray-900">{invoice.vendor_name}</p>
-            <p className="text-sm text-gray-600 mt-1">{invoice.vendor_address || 'Address on file'}</p>
-            <p className="text-sm text-gray-600">{invoice.vendor_email}</p>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Billed To</h3>
+            <p style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 700, color: '#111827' }}>{invoice.vendor_name}</p>
+            <p style={{ margin: '0 0 4px 0', fontSize: '13px', color: '#4B5563', whiteSpace: 'pre-wrap' }}>{invoice.vendor_address || 'Address on file'}</p>
+            <p style={{ margin: 0, fontSize: '13px', color: '#4B5563' }}>{invoice.vendor_email}</p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Invoice Date</h3>
-              <p className="font-medium text-gray-900">{invoice.created_at}</p>
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '11px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Invoice Date</h3>
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: '#111827' }}>{invoice.created_at}</p>
             </div>
             <div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Due Date</h3>
-              <p className="font-medium text-gray-900">{invoice.due_date}</p>
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '11px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Due Date</h3>
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: '#111827' }}>{invoice.due_date}</p>
             </div>
             <div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">PO Number</h3>
-              <p className="font-medium text-gray-900 font-mono">{invoice.po_number}</p>
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '11px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PO Number</h3>
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: '#111827', fontFamily: 'var(--font-mono)' }}>{invoice.po_number}</p>
             </div>
             <div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Amount Due</h3>
-              <p className="font-bold text-gray-900 font-mono">₹{invoice.total_amount.toLocaleString(undefined, {minimumFractionDigits: 0})}</p>
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '11px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amount Due</h3>
+              <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#111827', fontFamily: 'var(--font-mono)' }}>₹{invoice.total_amount.toLocaleString()}</p>
             </div>
           </div>
         </div>
 
-        <table className="w-full mb-10">
+        {/* Items */}
+        <table style={{ width: '100%', marginBottom: '40px', borderCollapse: 'collapse' }}>
           <thead>
-            <tr className="border-b-2 border-gray-800 text-left">
-              <th className="py-3 text-sm font-bold text-gray-900 uppercase">Item Description</th>
-              <th className="py-3 text-sm font-bold text-gray-900 uppercase text-center w-24">Qty</th>
-              <th className="py-3 text-sm font-bold text-gray-900 uppercase text-right w-32">Rate</th>
-              <th className="py-3 text-sm font-bold text-gray-900 uppercase text-right w-32">Amount</th>
+            <tr style={{ borderBottom: '2px solid #111827', textAlign: 'left' }}>
+              <th style={{ padding: '12px 0', fontSize: '12px', fontWeight: 700, color: '#111827', textTransform: 'uppercase' }}>Item Description</th>
+              <th style={{ padding: '12px 0', fontSize: '12px', fontWeight: 700, color: '#111827', textTransform: 'uppercase', textAlign: 'center', width: '96px' }}>Qty</th>
+              <th style={{ padding: '12px 0', fontSize: '12px', fontWeight: 700, color: '#111827', textTransform: 'uppercase', textAlign: 'right', width: '128px' }}>Rate</th>
+              <th style={{ padding: '12px 0', fontSize: '12px', fontWeight: 700, color: '#111827', textTransform: 'uppercase', textAlign: 'right', width: '128px' }}>Amount</th>
             </tr>
           </thead>
-          <tbody className="border-b border-gray-200">
+          <tbody>
             {invoice.items.map((item, idx) => (
-              <tr key={idx}>
-                <td className="py-4 text-sm text-gray-800">{item.description}</td>
-                <td className="py-4 text-sm text-gray-800 text-center">{item.quantity} {item.unit}</td>
-                <td className="py-4 text-sm text-gray-800 font-mono text-right">₹{item.unit_price.toLocaleString()}</td>
-                <td className="py-4 text-sm font-bold text-gray-900 font-mono text-right">₹{item.total.toLocaleString()}</td>
+              <tr key={idx} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                <td style={{ padding: '16px 0', fontSize: '13px', color: '#374151' }}>{item.description}</td>
+                <td style={{ padding: '16px 0', fontSize: '13px', color: '#374151', textAlign: 'center' }}>{item.quantity} {item.unit}</td>
+                <td style={{ padding: '16px 0', fontSize: '13px', color: '#374151', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>₹{item.unit_price.toLocaleString()}</td>
+                <td style={{ padding: '16px 0', fontSize: '14px', fontWeight: 700, color: '#111827', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>₹{item.total.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div className="flex justify-between items-end">
-          <div className="text-sm text-gray-500 w-1/2">
-            <h4 className="font-bold text-gray-900 mb-1">Payment Instructions</h4>
-            <p>Please make wire transfers to:</p>
-            <p className="font-mono mt-1">Bank: Global Business Bank</p>
-            <p className="font-mono">Routing: 123456789</p>
-            <p className="font-mono">Account: 987654321000</p>
+        {/* Footer */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div style={{ fontSize: '13px', color: '#6B7280', width: '50%' }}>
+            <h4 style={{ margin: '0 0 4px 0', fontWeight: 700, color: '#111827' }}>Payment Instructions</h4>
+            <p style={{ margin: 0 }}>Please make wire transfers to:</p>
+            <p style={{ margin: '4px 0 0 0', fontFamily: 'var(--font-mono)' }}>Bank: Global Business Bank</p>
+            <p style={{ margin: 0, fontFamily: 'var(--font-mono)' }}>Routing: 123456789</p>
+            <p style={{ margin: 0, fontFamily: 'var(--font-mono)' }}>Account: 987654321000</p>
           </div>
-          <div className="w-64 space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Subtotal</span>
-              <span className="font-mono font-medium text-gray-900">₹{invoice.subtotal.toLocaleString()}</span>
+          <div style={{ width: '256px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+              <span style={{ color: '#4B5563' }}>Subtotal</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500, color: '#111827' }}>₹{invoice.subtotal.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">GST ({invoice.tax_percent}%)</span>
-              <span className="font-mono font-medium text-gray-900">₹{invoice.tax_amount.toLocaleString()}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+              <span style={{ color: '#4B5563' }}>GST ({invoice.tax_percent}%)</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 500, color: '#111827' }}>₹{invoice.tax_amount.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between border-t-2 border-gray-800 pt-3 mt-3 bg-gray-50 -mx-4 px-4 pb-2 rounded">
-              <span className="font-bold text-gray-900 text-lg">Total Due</span>
-              <span className="font-mono font-bold text-2xl text-blue-600">₹{invoice.total_amount.toLocaleString()}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #111827', paddingTop: '16px', marginTop: '12px', backgroundColor: '#F9FAFB', margin: '12px -16px -16px', padding: '16px' }}>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Total Due</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '24px', fontWeight: 700, color: '#2563EB' }}>₹{invoice.total_amount.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
-        <div className="mt-16 pt-8 border-t border-gray-200 text-sm text-gray-500 text-center">
-          <p>Thank you for your business!</p>
-          <p className="mt-1">If you have any questions about this invoice, please contact billing@vendorbridge.com.</p>
+        <div style={{ marginTop: '80px', paddingTop: '32px', borderTop: '1px solid #E5E7EB', fontSize: '13px', color: '#6B7280', textAlign: 'center' }}>
+          <p style={{ margin: 0 }}>Thank you for your business!</p>
+          <p style={{ margin: '4px 0 0 0' }}>If you have any questions about this invoice, please contact billing@vendorbridge.com.</p>
         </div>
       </div>
     </div>

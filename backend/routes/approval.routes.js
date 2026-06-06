@@ -5,9 +5,9 @@ const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
 
 router.use(verifyToken);
 
-router.get('/', requireRole(['admin', 'manager', 'officer']), approvalController.getApprovals);
-router.post('/:quotationId/submit', requireRole(['admin', 'officer']), approvalController.submitForApproval);
-router.post('/:quotationId/approve', requireRole(['admin', 'manager']), approvalController.approveQuotation);
-router.post('/:quotationId/reject', requireRole(['admin', 'manager']), approvalController.rejectQuotation);
+router.get('/', requireRole(['manager']), approvalController.getApprovals);
+router.post('/:quotationId/submit', requireRole(['officer']), approvalController.submitForApproval);
+router.post('/:id/approve', requireRole(['manager']), approvalController.approveQuotation);
+router.post('/:id/reject', requireRole(['manager']), approvalController.rejectQuotation);
 
 module.exports = router;

@@ -1,25 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Scale } from 'lucide-react';
 import api from '../../lib/axios';
-import clsx from 'clsx';
+import PageHeader from '../../components/ui/PageHeader';
+import Button from '../../components/ui/Button';
 
 const QuotationCompare = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [quotations, setQuotations] = useState([]);
+  const [rfqTitle, setRfqTitle] = useState('');
 
   useEffect(() => {
-    // Mock Fetch
-    setTimeout(() => {
-      setQuotations([
-        { id: 101, vendor_name: "Infra Supplies", vendor_rating: "4.5/5", grand_total: 185000, gst_percent: 18, delivery_days: 10, payment_terms: "30 days" },
-        { id: 102, vendor_name: "TechCore LTD", vendor_rating: "4.2/5", grand_total: 200010, gst_percent: 18, delivery_days: 14, payment_terms: "30 days" },
-        { id: 103, vendor_name: "Office Need Co.", vendor_rating: "3.8/5", grand_total: 214800, gst_percent: 18, delivery_days: 7, payment_terms: "15 days" }
-      ]);
-      setLoading(false);
-    }, 500);
+    const fetchComparison = async () => {
+      try {
+        const [compRes, rfqRes] = await Promise.all([
+          api.get(`/rfq/${id}/comparison`),
+          api.get(`/rfq/${id}`).catch(() => null)
+        ]);
+        if (compRes.success && compRes.data) {
+          setQuotations(compRes.data);
+        }
+        if (rfqRes?.success && rfqRes?.data) {
+          setRfqTitle(rfqRes.data.title);
+        }
+      } catch (err) {
+        setQuotations([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchComparison();
   }, [id]);
 
   const handleSelectVendor = async (quotationId) => {
@@ -33,44 +45,75 @@ const QuotationCompare = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-8 bg-surface rounded w-1/3 mb-8"></div>
-        <div className="h-[400px] bg-surface rounded-xl w-full"></div>
+      <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        <div className="skeleton" style={{ height: '80px', marginBottom: '24px', borderRadius: '12px' }} />
+        <div className="skeleton" style={{ height: '400px', borderRadius: '16px' }} />
       </div>
     );
   }
 
-  // Determine lowest price
+  if (quotations.length === 0) {
+    return (
+      <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        <PageHeader
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button onClick={() => navigate(-1)} style={{
+                padding: '6px', borderRadius: '8px', border: '1.5px solid var(--border)', backgroundColor: 'var(--surface)', color: 'var(--txt-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <ArrowLeft size={16} />
+              </button>
+              Quotation Comparison
+            </div>
+          }
+        />
+        <div className="card" style={{ padding: '60px 40px', textAlign: 'center', color: 'var(--txt-2)' }}>
+          <Scale size={48} style={{ opacity: 0.2, margin: '0 auto 16px' }} />
+          <p style={{ margin: 0, fontSize: '15px' }}>Not enough quotations to compare for this RFQ.</p>
+        </div>
+      </div>
+    );
+  }
+
   const lowestPrice = Math.min(...quotations.map(q => q.grand_total));
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center gap-4 pb-2">
-        <button onClick={() => navigate(-1)} className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface rounded-md transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Quotation Comparison</h2>
-          <p className="text-sm text-text-secondary">RFQ: office furniture procurement q2 - 3 quotations received</p>
-        </div>
-      </div>
+    <div className="animate-fade-in" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <PageHeader
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button onClick={() => navigate(-1)} style={{
+              padding: '6px', borderRadius: '8px', border: '1.5px solid var(--border)', backgroundColor: 'var(--surface)', color: 'var(--txt-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <ArrowLeft size={16} />
+            </button>
+            Quotation Comparison
+          </div>
+        }
+        subtitle={`RFQ: ${rfqTitle || `ID #${id}`} — ${quotations.length} quotations received`}
+      />
 
-      <div className="bg-surface border border-border rounded-xl shadow-xl overflow-hidden p-6">
-        <div className="overflow-x-auto">
-          <table className="w-full text-center text-sm whitespace-nowrap border-collapse">
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '14px' }}>
             <thead>
-              <tr>
-                <th className="p-4 font-bold text-text-secondary w-48 border border-border bg-background">
+              <tr style={{ backgroundColor: 'var(--surface-2)', borderBottom: '1.5px solid var(--border)' }}>
+                <th style={{ padding: '16px', fontWeight: 700, color: 'var(--txt-2)', textAlign: 'left', width: '200px', borderRight: '1px solid var(--border)' }}>
                   Criteria
                 </th>
                 {quotations.map(quote => {
                   const isBest = quote.grand_total === lowestPrice;
                   return (
-                    <th key={`head-${quote.id}`} className={clsx(
-                      "p-4 border border-border min-w-[200px]",
-                      isBest ? "bg-success/20 text-success border-success/50" : "bg-background text-text-primary"
-                    )}>
-                      {quote.vendor_name} {isBest && "(Lowest)"}
+                    <th key={`head-${quote.id}`} style={{
+                      padding: '16px', borderRight: '1px solid var(--border)',
+                      backgroundColor: isBest ? 'var(--primary-m)' : 'transparent',
+                      color: isBest ? 'var(--primary)' : 'var(--txt)',
+                      fontWeight: 700, minWidth: '240px'
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '16px' }}>{quote.vendor_name}</span>
+                        {isBest && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '999px', backgroundColor: 'var(--primary)', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Best Value</span>}
+                      </div>
                     </th>
                   );
                 })}
@@ -78,127 +121,107 @@ const QuotationCompare = () => {
             </thead>
             <tbody>
               {/* Grand Total Row */}
-              <tr>
-                <td className="p-4 font-medium text-text-secondary border border-border bg-background">
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '16px', fontWeight: 600, color: 'var(--txt-2)', textAlign: 'left', borderRight: '1px solid var(--border)' }}>
                   Grand Total
                 </td>
                 {quotations.map(quote => {
                   const isBest = quote.grand_total === lowestPrice;
                   return (
-                    <td key={`total-${quote.id}`} className={clsx(
-                      "p-4 border border-border font-mono",
-                      isBest ? "bg-success/20 text-success font-bold border-success/50" : "text-text-primary"
-                    )}>
-                      {quote.grand_total.toLocaleString()}
+                    <td key={`total-${quote.id}`} style={{
+                      padding: '16px', borderRight: '1px solid var(--border)', fontFamily: 'var(--font-mono)',
+                      backgroundColor: isBest ? 'var(--primary-m)' : 'transparent',
+                      color: isBest ? 'var(--primary)' : 'var(--txt)', fontWeight: isBest ? 700 : 500, fontSize: '16px'
+                    }}>
+                      ₹{quote.grand_total.toLocaleString()}
                     </td>
                   );
                 })}
               </tr>
-              
+
               {/* GST % Row */}
-              <tr>
-                <td className="p-4 font-medium text-text-secondary border border-border bg-background">
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '16px', fontWeight: 600, color: 'var(--txt-2)', textAlign: 'left', borderRight: '1px solid var(--border)' }}>
                   GST %
                 </td>
                 {quotations.map(quote => {
                   const isBest = quote.grand_total === lowestPrice;
                   return (
-                    <td key={`gst-${quote.id}`} className={clsx(
-                      "p-4 border border-border font-mono",
-                      isBest ? "bg-success/20 text-success border-success/50" : "text-text-primary"
-                    )}>
-                      {quote.gst_percent}
+                    <td key={`gst-${quote.id}`} style={{
+                      padding: '16px', borderRight: '1px solid var(--border)', fontFamily: 'var(--font-mono)',
+                      backgroundColor: isBest ? 'var(--primary-m)' : 'transparent',
+                      color: isBest ? 'var(--primary)' : 'var(--txt)'
+                    }}>
+                      {quote.gst_percent}%
                     </td>
                   );
                 })}
               </tr>
 
               {/* Delivery Row */}
-              <tr>
-                <td className="p-4 font-medium text-text-secondary border border-border bg-background">
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '16px', fontWeight: 600, color: 'var(--txt-2)', textAlign: 'left', borderRight: '1px solid var(--border)' }}>
                   Delivery (days)
                 </td>
                 {quotations.map(quote => {
                   const isBest = quote.grand_total === lowestPrice;
                   return (
-                    <td key={`del-${quote.id}`} className={clsx(
-                      "p-4 border border-border font-mono",
-                      isBest ? "bg-success/20 text-success border-success/50" : "text-text-primary"
-                    )}>
-                      {quote.delivery_days}
+                    <td key={`del-${quote.id}`} style={{
+                      padding: '16px', borderRight: '1px solid var(--border)', fontFamily: 'var(--font-mono)',
+                      backgroundColor: isBest ? 'var(--primary-m)' : 'transparent',
+                      color: isBest ? 'var(--primary)' : 'var(--txt)'
+                    }}>
+                      {quote.delivery_days} days
                     </td>
                   );
                 })}
               </tr>
 
               {/* Vendor Rating Row */}
-              <tr>
-                <td className="p-4 font-medium text-text-secondary border border-border bg-background">
-                  Vendor rating
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '16px', fontWeight: 600, color: 'var(--txt-2)', textAlign: 'left', borderRight: '1px solid var(--border)' }}>
+                  Vendor Rating
                 </td>
                 {quotations.map(quote => {
                   const isBest = quote.grand_total === lowestPrice;
                   return (
-                    <td key={`rat-${quote.id}`} className={clsx(
-                      "p-4 border border-border font-mono",
-                      isBest ? "bg-success/20 text-success border-success/50" : "text-text-primary"
-                    )}>
-                      {quote.vendor_rating}
+                    <td key={`rat-${quote.id}`} style={{
+                      padding: '16px', borderRight: '1px solid var(--border)', fontFamily: 'var(--font-mono)',
+                      backgroundColor: isBest ? 'var(--primary-m)' : 'transparent',
+                      color: isBest ? 'var(--warning)' : 'var(--warning)', fontWeight: 600
+                    }}>
+                      {Number(quote.vendor_rating || 0).toFixed(1)} ⭐
                     </td>
                   );
                 })}
               </tr>
 
-              {/* Payment terms Row */}
+              {/* Action Row */}
               <tr>
-                <td className="p-4 font-medium text-text-secondary border border-border bg-background">
-                  Payment terms
+                <td style={{ padding: '24px 16px', fontWeight: 600, color: 'var(--txt-2)', textAlign: 'left', borderRight: '1px solid var(--border)' }}>
+                  Decision
                 </td>
                 {quotations.map(quote => {
                   const isBest = quote.grand_total === lowestPrice;
                   return (
-                    <td key={`pay-${quote.id}`} className={clsx(
-                      "p-4 border border-border",
-                      isBest ? "bg-success/20 text-success border-success/50" : "text-text-primary"
-                    )}>
-                      {quote.payment_terms}
-                    </td>
-                  );
-                })}
-              </tr>
-
-              {/* Actions Row */}
-              <tr>
-                <td className="p-4 border border-border bg-background"></td>
-                {quotations.map(quote => {
-                  const isBest = quote.grand_total === lowestPrice;
-                  return (
-                    <td key={`action-${quote.id}`} className={clsx(
-                      "p-4 border border-border",
-                      isBest ? "bg-success/20 border-success/50" : ""
-                    )}>
-                      {isBest ? (
-                        <button 
-                          onClick={() => handleSelectVendor(quote.id)}
-                          className="w-full btn bg-success hover:bg-green-600 text-white flex items-center justify-center gap-2"
-                        >
-                          Select & Approve
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={() => handleSelectVendor(quote.id)}
-                          className="w-full btn bg-transparent border border-text-secondary text-text-primary hover:border-text-primary transition-colors"
-                        >
-                          Select
-                        </button>
-                      )}
+                    <td key={`act-${quote.id}`} style={{
+                      padding: '24px 16px', borderRight: '1px solid var(--border)',
+                      backgroundColor: isBest ? 'var(--primary-m)' : 'transparent'
+                    }}>
+                      <Button
+                        variant={isBest ? 'primary' : 'outline'}
+                        style={{ width: '100%', justifyContent: 'center' }}
+                        icon={<CheckCircle size={16} />}
+                        onClick={() => handleSelectVendor(quote.id)}
+                      >
+                        Select Vendor
+                      </Button>
                     </td>
                   );
                 })}
               </tr>
             </tbody>
           </table>
-          <p className="text-xs text-danger mt-4 font-medium">Green = lowest price, selecting vendor initiates the approval workflow.</p>
         </div>
       </div>
     </div>

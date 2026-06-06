@@ -1,7 +1,9 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export const AuthContext = createContext();
+
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -38,12 +40,8 @@ export const AuthProvider = ({ children }) => {
   const isAuthenticated = !!token;
   const role = user?.role || null;
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background text-text-primary">Loading...</div>;
-  }
-
   return (
-    <AuthContext.Provider value={{ user, token, role, isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ user, token, role, isAuthenticated, loading, login, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );
